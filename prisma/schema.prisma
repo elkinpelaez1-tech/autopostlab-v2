@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String         @id @default(cuid())
+  name            String?
+  email           String         @unique
+  password        String
+  avatarUrl       String?
+  createdAt       DateTime       @default(now())
+  role            Role           @default(USER)
+  updatedAt       DateTime       @updatedAt
+  refreshToken    String?
+  refreshTokens   RefreshToken[]
+  subscriptions   Subscription[]
+  usageRecords    UsageRecord[]
+  ownedWorkspaces Workspace[]    @relation("WorkspaceOwner")
+}
+
+model Workspace {
+  id             String          @id @default(cuid())
+  name           String
+  ownerId        String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  files          File[]
+  posts          Post[]
+  scheduledPosts ScheduledPost[]
+  socialAccounts SocialAccount[]
+  owner          User            @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SocialAccount {
+  id                 String              @id @default(cuid())
+  provider           SocialProvider
+  providerAccountId  String
+  displayName        String?
+  username           String?
+  avatarUrl          String?
+  accessToken        String
+  refreshToken       String?
+  accessTokenExpires DateTime?
+  status             SocialAccountStatus @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  workspaceId        String
+  posts              Post[]
+  scheduledPosts     ScheduledPost[]
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([provider, providerAccountId])
+}
+
+model Post {
+  id              String          @id @default(cuid())
+  socialAccountId String?
+  title           String?
+  content         String
+  linkUrl         String?
+  isDraft         Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  workspaceId     String
+  socialAccount   SocialAccount?  @relation(fields: [socialAccountId], references: [id])
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  files           PostFile[]
+  scheduledPosts  ScheduledPost[]
+
+  @@index([workspaceId])
+  @@index([socialAccountId])
+}
+
+model File {
+  id          String       @id @default(cuid())
+  url         String
+  provider    FileProvider @default(LOCAL)
+  mimeType    String?
+  sizeBytes   Int?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts       PostFile[]
+
+  @@index([workspaceId])
+}
+
+model PostFile {
+  postId String
+  fileId String
+  order  Int    @default(0)
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, fileId])
+}
+
+model Plan {
+  id                 String         @id @default(cuid())
+  name               String
+  description        String?
+  priceMonthlyCents  Int
+  currency           String         @default("USD")
+  maxPostsPerMonth   Int?
+  maxSocialAccounts  Int?
+  maxScheduledPerDay Int?
+  isActive           Boolean        @default(true)
+  isDefaultFreePlan  Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String
+  planId                 String
+  status                 SubscriptionStatus @default(TRIALING)
+  validFrom              DateTime
+  validTo                DateTime
+  externalCustomerId     String?
+  externalSubscriptionId String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  plan                   Plan               @relation(fields: [planId], references: [id])
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model ScheduledPost {
+  id              String          @id @default(cuid())
+  postId          String
+  socialAccountId String
+  scheduledAt     DateTime
+  status          ScheduledStatus @default(PENDING)
+  errorMessage    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  workspaceId     String
+  post            Post            @relation(fields: [postId], references: [id])
+  socialAccount   SocialAccount   @relation(fields: [socialAccountId], references: [id])
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([postId])
+  @@index([socialAccountId])
+  @@index([status])
+}
+
+model UsageRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  periodStart DateTime
+  periodEnd   DateTime
+  postsCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, periodStart, periodEnd])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SocialProvider {
+  FACEBOOK
+  INSTAGRAM
+  TWITTER
+  LINKEDIN
+  TIKTOK
+  YOUTUBE
+  OTHER
+}
+
+enum SocialAccountStatus {
+  ACTIVE
+  DISCONNECTED
+  ERROR
+}
+
+enum ScheduledStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum FileProvider {
+  LOCAL
+  CLOUDINARY
+  S3
+  OTHER
+}
