@@ -3,6 +3,7 @@ import { FacebookAuthService } from './facebook-auth.service';
 import { LinkedinAuthService } from './linkedin-auth.service';
 import { TikTokAuthService } from './tiktok-auth.service';
 import { SocialAccountsService } from './social-accounts.service';
+import { AuthService } from '../auth/auth.service';
 import type { Response } from 'express';
 
 @Controller('social-auth') // Con el prefix global /api, esto queda como /api/social-auth
@@ -14,6 +15,7 @@ export class SocialAuthController {
     private readonly linkedinAuthService: LinkedinAuthService,
     private readonly tiktokAuthService: TikTokAuthService,
     private readonly socialAccountsService: SocialAccountsService,
+    private readonly authService: AuthService,
   ) { }
 
   // Diagnostic route
@@ -329,6 +331,84 @@ export class SocialAuthController {
     } catch (error) {
       this.logger.error('Error publicando en LinkedIn:', error);
       throw new InternalServerErrorException(error.message || 'Error al publicar en LinkedIn');
+    }
+  // ----------------------------------------------------------
+  // 📌 7. Iniciar flujo de Google
+  // ----------------------------------------------------------
+  @Get('google')
+  async googleAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
+    this.logger.log(`Iniciando auth de Google para workspace: ${workspaceId || 'Login'}`);
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    
+    if (!redirectUri) {
+        this.logger.error('GOOGLE_REDIRECT_URI no está configurada');
+        return res.status(500).json({ error: 'Configuración de Google incompleta en el servidor' });
+    }
+
+    const scope = [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile'
+    ].join(' ');
+    
+    const state = workspaceId || 'login';
+    
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}&access_type=offline&prompt=consent`;
+    
+    return res.redirect(url);
+  }
+
+  // ----------------------------------------------------------
+  // 📌 8. Callback de Google
+  // ----------------------------------------------------------
+  @Get('callback/google')
+  async googleCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Res() res: Response,
+  ) {
+    this.logger.log(`Callback de Google recibido. State: ${state}`);
+
+    try {
+      // 1. Intercambiar code por tokens (access_token e id_token)
+      const tokenUrl = 'https://oauth2.googleapis.com/token';
+      const tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+          grant_type: 'authorization_code',
+        }),
+      });
+
+      const tokens: any = await tokenResponse.json();
+
+      if (tokens.error) {
+        this.logger.error('Error intercambiando código de Google:', tokens.error_description || tokens.error);
+        throw new Error(tokens.error_description || tokens.error);
+      }
+
+      const { id_token } = tokens;
+
+      // 2. Usar AuthService para realizar el login/registro silencioso y obtener JWT de Autopostlab
+      // Reutilizamos la lógica existente que valida el id_token y genera los tokens de nuestra app
+      const loginResult = await this.authService.loginWithGoogle(id_token);
+
+      // 3. Redirigir al frontend en Vercel con los tokens de acceso
+      // Usamos el Dashboard como destino principal tras un login exitoso
+      const frontendUrl = 'https://autopostlab-v2.vercel.app/dashboard';
+      const redirectUrl = `${frontendUrl}?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
+
+      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a Vercel...`);
+      return res.redirect(redirectUrl);
+
+    } catch (error) {
+      this.logger.error('Error crítico en Google Callback:', error.message);
+      // En caso de error, redirigimos al login con un parámetro de error
+      return res.redirect('https://autopostlab-v2.vercel.app/login?error=google_auth_failed');
     }
   }
 }
