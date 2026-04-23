@@ -34,6 +34,7 @@ export class FilesController {
     )
     file: Express.Multer.File,
   ) {
+    console.log('UPLOAD FILE RECEIVED:', file);
     const saved = await this.filesService.uploadFile(workspaceId, file);
     return {
       message: 'Medio multimedia subido exitosamente a Cloudinary',
