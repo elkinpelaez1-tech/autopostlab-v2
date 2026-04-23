@@ -349,10 +349,10 @@ export class SocialAuthController {
   async googleAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
     this.logger.log(`Iniciando auth de Google para workspace: ${workspaceId || 'Login'}`);
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://autopostlab-v2-2.onrender.com/api/social-auth/callback/google";
 
-    if (!redirectUri) {
-      this.logger.error('GOOGLE_REDIRECT_URI no está configurada');
+    if (!clientId) {
+      this.logger.error('GOOGLE_CLIENT_ID no está configurada');
       return res.status(500).json({ error: 'Configuración de Google incompleta en el servidor' });
     }
 
@@ -389,7 +389,7 @@ export class SocialAuthController {
           code,
           client_id: process.env.GOOGLE_CLIENT_ID || '',
           client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-          redirect_uri: process.env.GOOGLE_REDIRECT_URI || '',
+          redirect_uri: process.env.GOOGLE_REDIRECT_URI || "https://autopostlab-v2-2.onrender.com/api/social-auth/callback/google",
           grant_type: 'authorization_code',
         }),
       });
