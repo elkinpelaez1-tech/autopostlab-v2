@@ -43,51 +43,26 @@ const AIReport: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/posts');
-      const posts = response.data;
+      const response = await api.get('/analytics/ai-report');
+      const apiData = response.data;
       
-      // Procesar métricas reales
-      const publishedCount = posts.filter((p: any) => p.scheduledPosts.some((sp: any) => sp.status === 'PUBLISHED')).length;
-      
-      // Simulamos engagement basado en datos reales (ID del post como semilla)
-      const totalEngagement = posts.reduce((acc: number, post: any) => {
-        const seed = post.id.charCodeAt(0) + post.id.charCodeAt(post.id.length - 1);
-        return acc + Math.floor((seed % 100) + 50);
-      }, 0);
-
-      // Datos para Radar Chart (Simulación de desempeño por categoría basada en datos reales)
+      // Datos para Radar Chart basados en métricas reales de la API
       const radarData = [
-        { subject: 'Engagement', A: publishedCount * 15, fullMark: 150 },
-        { subject: 'Alcance', A: totalEngagement / 10, fullMark: 150 },
-        { subject: 'Consistencia', A: 120, fullMark: 150 },
-        { subject: 'Viralidad', A: 85, fullMark: 150 },
+        { subject: 'Engagement', A: Math.min(150, apiData.totalEngagement / 10), fullMark: 150 },
+        { subject: 'Alcance', A: Math.min(150, apiData.totalPublished * 20), fullMark: 150 },
+        { subject: 'Consistencia', A: apiData.totalPublished > 0 ? 120 : 30, fullMark: 150 },
+        { subject: 'Viralidad', A: 85, fullMark: 150 }, // Aún estático hasta tener más datos
         { subject: 'Crecimiento', A: 105, fullMark: 150 },
       ];
 
       setData({
-        posts: publishedCount,
-        engagement: totalEngagement,
+        posts: apiData.totalPublished,
+        engagement: apiData.totalEngagement,
         radarData,
-        insights: [
-          { 
-            title: "Optimización de Caption", 
-            text: "Tus publicaciones con más de 100 caracteres están generando un 15% más de interacción en LinkedIn.",
-            icon: <MessageSquare size={18} />,
-            type: 'positive'
-          },
-          { 
-            title: "Patrón de Tiempo", 
-            text: "Detectamos un pico de actividad los Martes a las 18:30. Sugerimos programar tu contenido estrella en este slot.",
-            icon: <TrendingUp size={18} />,
-            type: 'trend'
-          },
-          { 
-            title: "Sugerencia de Formato", 
-            text: "El contenido visual (MP4) en TikTok está superando al reach orgánico de Instagram por un factor de 2.4x.",
-            icon: <Zap size={18} />,
-            type: 'action'
-          }
-        ]
+        insights: apiData.insights.map((insight: any) => ({
+          ...insight,
+          icon: insight.type === 'positive' ? <CheckCircle2 size={18} /> : <TrendingUp size={18} />
+        }))
       });
     } catch (err) {
       console.error('Error fetching AI report data:', err);

@@ -26,11 +26,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const validateToken = async () => {
-      if (token && token !== 'undefined' && token !== 'null') {
+    const captureAndValidate = async () => {
+      let currentToken = token;
+
+      // 1. CAPTURAR TOKENS DE LA URL (FLUJO GOOGLE REDIRECT)
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+
+      if (urlToken) {
+        console.log('Token capturado de la URL');
+        localStorage.setItem('token', urlToken);
+        setToken(urlToken);
+        currentToken = urlToken;
+        // Limpiar URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      if (currentToken && currentToken !== 'undefined' && currentToken !== 'null') {
         try {
-          const decoded: any = jwtDecode(token);
+          const decoded: any = jwtDecode(currentToken);
           const currentTime = Date.now() / 1000;
           
           if (decoded.exp < currentTime) {
@@ -39,7 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             // 🔄 REHIDRATACIÓN: Consultar datos frescos del backend
             try {
-              const res = await api.get('/users/me');
+              const res = await api.get('/users/me', {
+                headers: { Authorization: `Bearer ${currentToken}` }
+              });
               const userData = res.data;
               setUser({
                 id: userData.id,
@@ -50,7 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               });
             } catch (fetchError) {
               console.error('Error sincronizando perfil desde backend:', fetchError);
-              // Fallback a los datos del token si la red falla pero el token es válido
               setUser({
                 id: decoded.sub || decoded.id,
                 email: decoded.email,
@@ -65,12 +80,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           logout();
         }
       } else {
-        if (token) logout(); 
+        if (currentToken) logout(); 
       }
       setIsLoading(false);
     };
 
-    validateToken();
+    captureAndValidate();
   }, [token]);
 
   const login = (newToken: string) => {

@@ -16,12 +16,20 @@ export class SocialAuthController {
     private readonly tiktokAuthService: TikTokAuthService,
     private readonly socialAccountsService: SocialAccountsService,
     private readonly authService: AuthService,
-  ) { }
+  ) {
+    this.logger.log('SOCIAL AUTH CONTROLLER LOADED');
+    console.log('SOCIAL AUTH CONTROLLER LOADED');
+  }
 
   // Diagnostic route
   @Get('check')
   check() {
     return { ok: true, controller: 'SocialAuthController' };
+  }
+
+  @Get('test')
+  test() {
+    return 'ok';
   }
 
   // 1. Iniciar flujo de Facebook
@@ -174,7 +182,7 @@ export class SocialAuthController {
       });
     } catch (error) {
       this.logger.error('Error en callback de LinkedIn:', error);
-      
+
       // Manejo específico de error de base de datos
       if (error.code === 'P2003') {
         return res.status(404).json({
@@ -200,12 +208,12 @@ export class SocialAuthController {
     @Body('redirectUri') redirectUri?: string,
   ) {
     this.logger.log(`[DEBUG] Forzando intercambio de token para workspace: ${workspaceId}`);
-    
+
     try {
       const userToken = await this.facebookAuthService.exchangeCodeForToken(code, redirectUri);
       const longLivedToken = await this.facebookAuthService.getLongLivedToken(userToken);
       const allAccounts = await this.facebookAuthService.getFacebookAndInstagramAccounts(longLivedToken);
-      
+
       if (allAccounts.length === 0) {
         return { success: false, message: 'No se encontraron cuentas vinculadas.' };
       }
@@ -268,7 +276,7 @@ export class SocialAuthController {
     try {
       // A. Intercambiar código por tokens
       const tokenData = await this.tiktokAuthService.exchangeCodeForToken(code);
-      
+
       // B. Obtener información del perfil
       const userData = await this.tiktokAuthService.getUserProfile(tokenData.accessToken);
 
@@ -332,6 +340,8 @@ export class SocialAuthController {
       this.logger.error('Error publicando en LinkedIn:', error);
       throw new InternalServerErrorException(error.message || 'Error al publicar en LinkedIn');
     }
+  }
+
   // ----------------------------------------------------------
   // 📌 7. Iniciar flujo de Google
   // ----------------------------------------------------------
@@ -340,21 +350,21 @@ export class SocialAuthController {
     this.logger.log(`Iniciando auth de Google para workspace: ${workspaceId || 'Login'}`);
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-    
+
     if (!redirectUri) {
-        this.logger.error('GOOGLE_REDIRECT_URI no está configurada');
-        return res.status(500).json({ error: 'Configuración de Google incompleta en el servidor' });
+      this.logger.error('GOOGLE_REDIRECT_URI no está configurada');
+      return res.status(500).json({ error: 'Configuración de Google incompleta en el servidor' });
     }
 
     const scope = [
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile'
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile'
     ].join(' ');
-    
+
     const state = workspaceId || 'login';
-    
+
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}&access_type=offline&prompt=consent`;
-    
+
     return res.redirect(url);
   }
 
@@ -377,9 +387,9 @@ export class SocialAuthController {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           code,
-          client_id: process.env.GOOGLE_CLIENT_ID,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET,
-          redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+          client_id: process.env.GOOGLE_CLIENT_ID || '',
+          client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+          redirect_uri: process.env.GOOGLE_REDIRECT_URI || '',
           grant_type: 'authorization_code',
         }),
       });
@@ -394,21 +404,19 @@ export class SocialAuthController {
       const { id_token } = tokens;
 
       // 2. Usar AuthService para realizar el login/registro silencioso y obtener JWT de Autopostlab
-      // Reutilizamos la lógica existente que valida el id_token y genera los tokens de nuestra app
       const loginResult = await this.authService.loginWithGoogle(id_token);
 
-      // 3. Redirigir al frontend en Vercel con los tokens de acceso
-      // Usamos el Dashboard como destino principal tras un login exitoso
-      const frontendUrl = 'https://autopostlab-v2.vercel.app/dashboard';
-      const redirectUrl = `${frontendUrl}?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
+      // 3. Redirigir al frontend con los tokens de acceso
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const redirectUrl = `${frontendUrl}/dashboard?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
 
-      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a Vercel...`);
+      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a ${frontendUrl}...`);
       return res.redirect(redirectUrl);
 
     } catch (error) {
       this.logger.error('Error crítico en Google Callback:', error.message);
-      // En caso de error, redirigimos al login con un parámetro de error
-      return res.redirect('https://autopostlab-v2.vercel.app/login?error=google_auth_failed');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }
 }

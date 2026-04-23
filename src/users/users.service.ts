@@ -22,7 +22,10 @@ export class UsersService {
   // -------------------------------------------------------
   async create(data: CreateUserDto) {
   // Encriptar la contraseña antes de guardar
-  const hashedPass = await bcrypt.hash(data.password, 10);
+  let hashedPass = '';
+  if (data.password) {
+    hashedPass = await bcrypt.hash(data.password, 10);
+  }
 
   return this.prisma.user.create({
     data: {
@@ -69,7 +72,7 @@ export class UsersService {
 
     // --- PROTECCIÓN DE DATOS SENSIBLES ---
     // Si avatarUrl viene vacío o null en un update general, mantenemos la anterior
-    const cleanData = { ...data };
+    const cleanData: any = { ...data };
     if (!cleanData.avatarUrl && exists.avatarUrl) {
        delete cleanData.avatarUrl;
     }

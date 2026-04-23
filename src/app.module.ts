@@ -11,6 +11,7 @@ import { FilesModule } from './files/files.module';
 import { BillingModule } from './billing/billing.module';
 // import { SchedulerModule } from './scheduler/scheduler.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import * as fs from 'fs';
 
 @Module({
@@ -23,6 +24,7 @@ import * as fs from 'fs';
     PostsModule,
     FilesModule,
     BillingModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
