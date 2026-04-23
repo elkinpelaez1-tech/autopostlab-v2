@@ -33,14 +33,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 1. CAPTURAR TOKENS DE LA URL (FLUJO GOOGLE REDIRECT)
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get('token');
+      const urlRefreshToken = params.get('refreshToken');
 
       if (urlToken) {
-        console.log('Token capturado de la URL');
+        console.log('Tokens capturados de la URL');
         localStorage.setItem('token', urlToken);
+        if (urlRefreshToken) {
+          localStorage.setItem('refreshToken', urlRefreshToken);
+        }
         setToken(urlToken);
         currentToken = urlToken;
-        // Limpiar URL
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // Limpiar URL y asegurar ruta limpia
+        window.history.replaceState({}, document.title, '/dashboard');
       }
 
       if (currentToken && currentToken !== 'undefined' && currentToken !== 'null') {
