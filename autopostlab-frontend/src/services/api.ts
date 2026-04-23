@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   // baseURL: 'https://unprecipitative-nonplausibly-dilan.ngrok-free.dev/api', // 👈 Para pruebas externas de Meta
-  baseURL: 'http://localhost:3001/api', // 👈 Uso local para desarrollo rápido
+  baseURL: `${import.meta.env.VITE_API_URL}/api` || 'http://localhost:3001/api',
   withCredentials: true,
 });
 

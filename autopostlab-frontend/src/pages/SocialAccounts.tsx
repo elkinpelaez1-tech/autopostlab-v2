@@ -31,7 +31,11 @@ const SocialAccounts: React.FC = () => {
   const fetchAccounts = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/social-accounts');
+      const response = await api.get('/social-accounts', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       setAccounts(response.data);
       setError(null);
     } catch (err: any) {
@@ -66,7 +70,8 @@ const SocialAccounts: React.FC = () => {
       alert('Error: No se encontró el Workspace ID. Por favor re-inicia sesión.');
       return;
     }
-    const authUrl = `http://localhost:3001/api/social-auth/instagram?workspaceId=${user.workspaceId}`;
+    const API_URL = import.meta.env.VITE_API_URL;
+    const authUrl = `${API_URL}/api/social-auth/instagram?workspaceId=${user.workspaceId}`;
     window.location.href = authUrl;
   };
 
@@ -75,7 +80,8 @@ const SocialAccounts: React.FC = () => {
       alert('Error: No se encontró el Workspace ID. Por favor re-inicia sesión.');
       return;
     }
-    const authUrl = `http://localhost:3001/api/social-auth/tiktok?workspaceId=${user.workspaceId}`;
+    const API_URL = import.meta.env.VITE_API_URL;
+    const authUrl = `${API_URL}/api/social-auth/tiktok?workspaceId=${user.workspaceId}`;
     window.location.href = authUrl;
   };
 
@@ -108,7 +114,11 @@ const SocialAccounts: React.FC = () => {
 
     try {
       setIsLoading(true);
-      await api.delete(`/social-accounts/${id}`);
+      await api.delete(`/social-accounts/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       // Actualizar la lista local eliminando la cuenta borrada
       setAccounts(prev => prev.filter(acc => acc.id !== id));
       alert('Cuenta desconectada con éxito.');
