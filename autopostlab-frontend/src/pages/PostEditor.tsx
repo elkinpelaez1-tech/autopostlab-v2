@@ -109,20 +109,25 @@ const PostEditor: React.FC = () => {
     );
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    console.log("FILE:", file);
-    if (!file || !user?.workspaceId) return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    console.log("SELECTED FILE:", selectedFile);
+    
+    if (!selectedFile) {
+      alert("No file selected");
+      return;
+    }
+
+    if (!user?.workspaceId) return;
 
     try {
       setIsUploading(true);
-      console.log('FILE TO UPLOAD:', file);
+      console.log('FILE TO UPLOAD:', selectedFile);
       
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', selectedFile);
 
       console.log("SENDING FORM DATA");
-      // Usar el nuevo endpoint directo y dejar que Axios maneje el Content-Type
       // Usar el nuevo endpoint directo y dejar que Axios maneje el Content-Type
       const response = await api.post('/upload', formData);
 
@@ -132,11 +137,10 @@ const PostEditor: React.FC = () => {
       setSelectedFiles(prev => [...prev, { 
         id: uploadedFile.id || `temp-${Date.now()}`, 
         url: uploadedFile.url || uploadedFile.secure_url,
-        mimeType: file.type || uploadedFile.mimeType
+        mimeType: selectedFile.type || uploadedFile.mimeType
       }]);
     } catch (err) {
       console.error("UPLOAD ERROR:", err);
-      console.error('Error uploading file:', err);
       alert('Error al subir el archivo. Intenta con otro formato o tamaño.');
     } finally {
       setIsUploading(false);
@@ -320,7 +324,7 @@ const PostEditor: React.FC = () => {
                     ref={fileInputRef} 
                     className="hidden-input" 
                     accept="image/*,video/*" 
-                    onChange={handleFileSelect}
+                    onChange={handleFileChange}
                   />
                   <button 
                     className="icon-btn-secondary" 
