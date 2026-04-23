@@ -178,8 +178,11 @@ export class PostsService {
       }
 
       // 1. Descargar el video
-      console.log(`[TIKTOK] Descargando video de: ${imageUrl}`);
-      const videoBuffer = await this.downloadFile(imageUrl);
+      console.log(`[TIKTOK] Descargando video de: ${finalImageUrl}`);
+      if (!finalImageUrl) {
+        throw new Error("imageUrl is required");
+      }
+      const videoBuffer = await this.downloadFile(finalImageUrl);
       
       // Validar tamaño (TikTok tiene límites, ej 50MB para este flujo simplificado)
       const MAX_SIZE = 50 * 1024 * 1024; // 50MB
