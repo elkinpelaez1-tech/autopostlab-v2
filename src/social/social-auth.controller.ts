@@ -348,6 +348,7 @@ export class SocialAuthController {
   @Get('google')
   async googleAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
     this.logger.log(`Iniciando auth de Google para workspace: ${workspaceId || 'Login'}`);
+    console.log('GOOGLE ROUTE HIT');
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://autopostlab-v2-2.onrender.com/api/social-auth/callback/google";
 
