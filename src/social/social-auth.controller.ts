@@ -90,7 +90,7 @@ export class SocialAuthController {
 
       if (allAccounts.length === 0) {
         console.log('ANTES DE REDIRECT DE NO ACCOUNTS');
-        // return res.redirect(`http://localhost:3000/?error=no_accounts_found`);
+        // return res.redirect(`https://autopostlab-v2.vercel.app/?error=no_accounts_found`);
         return res.json({ error: 'no_accounts_found', query, code, state: workspaceId });
       }
 
@@ -111,12 +111,12 @@ export class SocialAuthController {
 
       // E. Redirigir de vuelta al Frontend
       console.log('ANTES DEL REDIRECT FINAL');
-      // return res.redirect(`http://localhost:3000/success_connection=true`);
+      // return res.redirect(`https://autopostlab-v2.vercel.app/success_connection=true`);
       return res.json({ success: true, query, code, state: workspaceId });
     } catch (error) {
       console.error('❌ ERROR FATAL EN CALLBACK FACEBOOK:', error);
       this.logger.error('Error en callback de Facebook:', error);
-      // return res.redirect(`http://localhost:3000/?error=${encodeURIComponent(error.message)}`);
+      // return res.redirect(`https://autopostlab-v2.vercel.app/?error=${encodeURIComponent(error.message)}`);
       return res.status(500).json({ error: error.message });
     }
   }
@@ -144,13 +144,13 @@ export class SocialAuthController {
 
     if (!code) {
       this.logger.error('No se recibió código de LinkedIn');
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       return res.redirect(`${frontendUrl}/?error=no_code_received`);
     }
 
     if (!workspaceId || workspaceId === 'undefined') {
       this.logger.error('No se recibió workspaceId en el state');
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       return res.redirect(`${frontendUrl}/?error=invalid_workspace`);
     }
 
@@ -269,7 +269,7 @@ export class SocialAuthController {
 
     if (errorDesc || !code) {
       this.logger.error(`Error en callback de TikTok: ${errorDesc}`);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=tiktok_auth_failed`);
     }
 
@@ -293,11 +293,11 @@ export class SocialAuthController {
       }, workspaceId);
 
       // D. Redirigir al Frontend con éxito
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?success=true&provider=tiktok`);
     } catch (error) {
       this.logger.error('Error fatal en callback de TikTok:', error);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=${encodeURIComponent(error.message)}`);
     }
   }
@@ -407,7 +407,7 @@ export class SocialAuthController {
       const loginResult = await this.authService.loginWithGoogle(id_token);
 
       // 3. Redirigir al frontend con los tokens de acceso
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       const redirectUrl = `${frontendUrl}/dashboard?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
 
       this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a ${frontendUrl}...`);
@@ -415,7 +415,7 @@ export class SocialAuthController {
 
     } catch (error) {
       this.logger.error('Error crítico en Google Callback:', error.message);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }
