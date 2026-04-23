@@ -118,6 +118,10 @@ const PostEditor: React.FC = () => {
       return;
     }
 
+    const fileType = selectedFile?.type || "";
+    const fileName = selectedFile?.name || "";
+    const fileSize = selectedFile?.size || 0;
+
     if (!user?.workspaceId) return;
 
     try {
@@ -137,10 +141,11 @@ const PostEditor: React.FC = () => {
       setSelectedFiles(prev => [...prev, { 
         id: uploadedFile.id || `temp-${Date.now()}`, 
         url: uploadedFile.url || uploadedFile.secure_url,
-        mimeType: (selectedFile?.type || "").toLowerCase() || uploadedFile.mimeType
+        mimeType: (fileType || "").toLowerCase() || uploadedFile.mimeType
       }]);
     } catch (err) {
       console.error("UPLOAD ERROR:", err);
+      console.error("Preview error:", err);
       alert('Error al subir el archivo. Intenta con otro formato o tamaño.');
     } finally {
       setIsUploading(false);
