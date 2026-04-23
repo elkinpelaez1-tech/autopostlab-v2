@@ -15,8 +15,8 @@ const Login: React.FC = () => {
   }, [token, navigate]);
 
   const handleGoogleLogin = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    window.location.href = `${apiUrl}/api/social-auth/google`;
+    const API_URL = "https://autopostlab-v2-2.onrender.com";
+    window.location.href = `${API_URL}/api/social-auth/google`;
   };
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
