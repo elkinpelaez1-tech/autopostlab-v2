@@ -14,6 +14,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import * as fs from 'fs';
 
+import { UploadController } from './upload.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -26,7 +28,7 @@ import * as fs from 'fs';
     BillingModule,
     AnalyticsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, UploadController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
