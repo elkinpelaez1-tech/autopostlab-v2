@@ -115,17 +115,22 @@ const PostEditor: React.FC = () => {
 
     try {
       setIsUploading(true);
+      console.log('FILE TO UPLOAD:', file);
+      
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api.post(`/files/upload/${user.workspaceId}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      // Usar el nuevo endpoint directo y dejar que Axios maneje el Content-Type
+      // Usar el nuevo endpoint directo y dejar que Axios maneje el Content-Type
+      const response = await api.post('/upload', formData);
 
+      // Adaptar respuesta al formato esperado (el nuevo endpoint devuelve {url} o {file})
+      const uploadedFile = response.data.file || response.data;
+      
       setSelectedFiles(prev => [...prev, { 
-        id: response.data.file.id, 
-        url: response.data.file.url,
-        mimeType: response.data.file.mimeType
+        id: uploadedFile.id || `temp-${Date.now()}`, 
+        url: uploadedFile.url || uploadedFile.secure_url,
+        mimeType: file.type || uploadedFile.mimeType
       }]);
     } catch (err) {
       console.error('Error uploading file:', err);
