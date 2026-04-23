@@ -3,6 +3,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.log('ENV CHECK:', {
+    client: process.env.GOOGLE_CLIENT_ID,
+    secret: process.env.GOOGLE_CLIENT_SECRET,
+    redirect: process.env.GOOGLE_REDIRECT_URI
+  });
   const app = await NestFactory.create(AppModule);
 
   // Global Logger Middleware
