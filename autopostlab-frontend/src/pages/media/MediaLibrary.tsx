@@ -51,7 +51,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({ type }) => {
   };
 
   const filteredFiles = files.filter(f => 
-    f.mimeType.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (f.mimeType || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
     new Date(f.createdAt).toLocaleDateString().includes(searchTerm)
   );
 

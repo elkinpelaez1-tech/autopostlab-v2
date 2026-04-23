@@ -137,7 +137,7 @@ const PostEditor: React.FC = () => {
       setSelectedFiles(prev => [...prev, { 
         id: uploadedFile.id || `temp-${Date.now()}`, 
         url: uploadedFile.url || uploadedFile.secure_url,
-        mimeType: selectedFile.type || uploadedFile.mimeType
+        mimeType: (selectedFile?.type || "").toLowerCase() || uploadedFile.mimeType
       }]);
     } catch (err) {
       console.error("UPLOAD ERROR:", err);
