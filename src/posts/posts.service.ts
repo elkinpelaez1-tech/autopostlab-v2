@@ -5,6 +5,9 @@ import { LinkedinAuthService } from '../social/linkedin-auth.service';
 import { FacebookAuthService } from '../social/facebook-auth.service';
 import { TikTokAuthService } from '../social/tiktok-auth.service';
 import { SocialAccountsService } from '../social/social-accounts.service';
+import { FilesService } from '../files/files.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class PostsService {
@@ -14,6 +17,7 @@ export class PostsService {
     private facebookAuthService: FacebookAuthService,
     private tiktokAuthService: TikTokAuthService,
     private socialAccountsService: SocialAccountsService,
+    private filesService: FilesService,
   ) {}
 
   async create(workspaceId: string, dto: CreatePostDto) {
@@ -128,23 +132,47 @@ export class PostsService {
   // 🧱 MÉTODO INTERNO PARA PUBLICAR (Reutilizable)
   private async executePublication(provider: string, account: any, content: string, imageUrl?: string) {
     provider = provider.toUpperCase();
-    console.log(`[DEBUG] EXECUTE PUBLICATION - Provider: ${provider} | Content Length: ${content?.length} | Image: ${imageUrl?.substring(0, 50)}...`);
+    let finalImageUrl = imageUrl;
+
+    // 🛡️ SUBIR A CLOUDINARY SI ES LOCAL
+    if (imageUrl && !imageUrl.startsWith('http')) {
+      try {
+        console.log(`[DEBUG] Procesando imagen local para Cloudinary: ${imageUrl}`);
+        // Si es un path local, intentamos leerlo
+        const absolutePath = path.isAbsolute(imageUrl) ? imageUrl : path.join(process.cwd(), imageUrl);
+        if (fs.existsSync(absolutePath)) {
+          const buffer = fs.readFileSync(absolutePath);
+          const ext = path.extname(absolutePath).substring(1) || 'png';
+          finalImageUrl = await this.filesService.uploadFromBuffer(
+            account.workspaceId, 
+            buffer, 
+            path.basename(absolutePath), 
+            `image/${ext}`
+          );
+          console.log(`[DEBUG] Imagen local subida con éxito: ${finalImageUrl}`);
+        }
+      } catch (uploadError) {
+        console.error("Error subiendo imagen local a Cloudinary:", uploadError);
+      }
+    }
+
+    console.log(`[DEBUG] EXECUTE PUBLICATION - Provider: ${provider} | Content Length: ${content?.length} | Image: ${finalImageUrl?.substring(0, 50)}...`);
     if (provider === 'LINKEDIN') {
-      const res = await this.linkedinAuthService.createPost(account.accessToken, account.providerAccountId, content, imageUrl);
+      const res = await this.linkedinAuthService.createPost(account.accessToken, account.providerAccountId, content, finalImageUrl);
       return res.id || JSON.stringify(res);
     } 
     else if (provider === 'FACEBOOK') {
-      return await this.facebookAuthService.publishFacebookPost(account.providerAccountId, account.accessToken, content, imageUrl);
+      return await this.facebookAuthService.publishFacebookPost(account.providerAccountId, account.accessToken, content, finalImageUrl);
     }
     else if (provider === 'INSTAGRAM') {
-      if (!imageUrl) throw new Error("IMAGE_REQUIRED");
-      return await this.facebookAuthService.publishInstagramPost(account.providerAccountId, account.accessToken, imageUrl, content);
+      if (!finalImageUrl) throw new Error("IMAGE_REQUIRED");
+      return await this.facebookAuthService.publishInstagramPost(account.providerAccountId, account.accessToken, finalImageUrl, content);
     }
     else if (provider === 'TIKTOK') {
-      if (!imageUrl) throw new Error("VIDEO_REQUIRED_FOR_TIKTOK");
+      if (!finalImageUrl) throw new Error("VIDEO_REQUIRED_FOR_TIKTOK");
       
       // 0. Validar requisitos de video (Básico)
-      const lowercaseUrl = imageUrl.toLowerCase();
+      const lowercaseUrl = finalImageUrl.toLowerCase();
       if (!lowercaseUrl.endsWith('.mp4') && !lowercaseUrl.includes('video')) {
         throw new Error("TIKTOK_REQUIREMENT: Only .mp4 videos are officially supported for automated upload.");
       }

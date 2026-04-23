@@ -10,6 +10,29 @@ import * as path from 'path';
 export class FilesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async uploadFromBuffer(workspaceId: string, buffer: Buffer, filename: string, mimetype: string) {
+    let uploadResult;
+    try {
+      uploadResult = await new Promise<any>((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { 
+            folder: `autopostlab/${workspaceId}`,
+            resource_type: 'auto',
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          },
+        );
+        uploadStream.end(buffer);
+      });
+      return uploadResult.secure_url;
+    } catch (error) {
+      console.error("Error uploading buffer to Cloudinary:", error);
+      throw new BadRequestException('Error al subir archivo a Cloudinary');
+    }
+  }
+
   async uploadFile(workspaceId: string, file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Archivo no detectado');
 
