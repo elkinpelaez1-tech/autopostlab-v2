@@ -156,27 +156,47 @@ const PostEditor: React.FC = () => {
   };
 
   return (
-    <div>
-      <textarea value={content} onChange={e => setContent(e.target.value)} />
+    <div className="dashboard-container">
+      <div className="dashboard-welcome">
+        <h1>Nuevo Post</h1>
+      </div>
 
-      <input type="file" onChange={handleFileChange} />
+      <section className="quick-draft-card">
+        <div className="draft-editor-container">
+          <textarea
+            placeholder="¿Qué quieres publicar?"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            style={{ width: "100%", minHeight: 120 }}
+          />
 
-      {selectedFiles.map(file => {
-        const url =
-          typeof file.previewUrl === "string"
-            ? file.previewUrl
-            : typeof file.url === "string"
-              ? file.url
-              : "";
+          <div style={{ marginTop: 20 }}>
+            <input type="file" onChange={handleFileChange} />
+          </div>
 
-        if (!url) return null;
+          <div style={{ marginTop: 20 }}>
+            {selectedFiles.map(file => {
+              const url =
+                typeof file.previewUrl === "string"
+                  ? file.previewUrl
+                  : typeof file.url === "string"
+                    ? file.url
+                    : "";
 
-        return <img key={file.id} src={url} width={200} />;
-      })}
+              if (!url) return null;
 
-      <button onClick={() => handleCreatePost(true)}>Publicar</button>
+              return <img key={file.id} src={url} width={200} />;
+            })}
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <button onClick={() => handleCreatePost(true)}>
+              Publicar
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
-};
 
-export default PostEditor;
+  export default PostEditor;
