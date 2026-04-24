@@ -43,8 +43,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setToken(urlToken);
         currentToken = urlToken;
-        // Forzar recarga completa a dashboard
-        window.location.href = "/dashboard";
+        // Limpiar URL y redirigir internamente sin recarga
+        window.history.replaceState({}, document.title, "/dashboard");
       }
 
       if (currentToken && currentToken !== 'undefined' && currentToken !== 'null') {

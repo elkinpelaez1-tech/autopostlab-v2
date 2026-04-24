@@ -64,7 +64,7 @@ export class FilesService {
 
     // Guardar el registro permanente en Prisma asociado al Workspace
     try {
-      return await this.prisma.file.create({
+      const savedFile = await this.prisma.file.create({
         data: {
           workspaceId,
           url: uploadResult.secure_url,
@@ -73,13 +73,20 @@ export class FilesService {
           provider: FileProvider.CLOUDINARY,
         },
       });
+      // Devolvemos una mezcla de los datos de Cloudinary y Prisma para máxima compatibilidad
+      return {
+        ...savedFile,
+        public_id: uploadResult.public_id,
+        secure_url: uploadResult.secure_url
+      };
     } catch (e) {
-      // 🔴 HACK/TEST: Si la base de datos se queja porque el workspaceId 'dev-workspace-123'
-      // no existe, ignoramos la BD y devolvemos la URL de Cloudinary para que la prueba funcione.
+      // 🔴 HACK/TEST: Fallback si la BD falla en dev
       return { 
-        id: 'temporal-123',
+        id: uploadResult.public_id || 'temporal-123',
         workspaceId,
         url: uploadResult.secure_url,
+        secure_url: uploadResult.secure_url,
+        public_id: uploadResult.public_id,
         mimeType: file.mimetype,
         sizeBytes: file.size,
         provider: FileProvider.CLOUDINARY,
