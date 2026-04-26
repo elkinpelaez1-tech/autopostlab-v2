@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { FileProvider } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
@@ -8,7 +9,10 @@ import * as path from 'path';
 
 @Injectable()
 export class FilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService
+  ) {}
 
   async uploadFromBuffer(workspaceId: string, buffer: Buffer, filename: string, mimetype: string) {
     let uploadResult;
@@ -18,6 +22,9 @@ export class FilesService {
           { 
             folder: `autopostlab/${workspaceId}`,
             resource_type: 'auto',
+            cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
+            api_key: this.configService.get('CLOUDINARY_API_KEY'),
+            api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
           },
           (error, result) => {
             if (error) return reject(error);
@@ -51,9 +58,9 @@ export class FilesService {
           { 
             folder: `autopostlab/${workspaceId}`,
             resource_type: 'auto',
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-            api_key: process.env.CLOUDINARY_API_KEY,
-            api_secret: process.env.CLOUDINARY_API_SECRET,
+            cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
+            api_key: this.configService.get('CLOUDINARY_API_KEY'),
+            api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
           },
           (error, result) => {
             clearTimeout(timer);
