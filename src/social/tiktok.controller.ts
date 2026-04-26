@@ -12,6 +12,11 @@ export class TikTokController {
     private readonly socialAccountsService: SocialAccountsService,
   ) {}
 
+  @Get('test')
+  test() {
+    return { status: 'ok', message: 'TikTok Controller is mounted and working' };
+  }
+
   @Get('auth')
   async tiktokAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
     this.logger.log(`Iniciando auth de TikTok para workspace: ${workspaceId}`);
