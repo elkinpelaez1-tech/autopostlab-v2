@@ -23,10 +23,10 @@ export class UploadController {
     
     try {
       const result = await this.filesService.uploadFile(workspaceId, file);
-      console.log(`[UPLOAD_SUCCESS] File ${file.originalname} uploaded to Cloudinary`);
+      console.log(`[UPLOAD_SUCCESS] File ${file.originalname} uploaded and saved in DB with ID: ${result.id}`);
       
       return {
-        id: result.public_id || result.id,
+        id: result.id, // 👈 CRITICAL: Debe ser el UUID de la base de datos para evitar errores de Foreign Key
         url: result.secure_url || result.url
       };
     } catch (error) {
