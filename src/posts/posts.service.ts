@@ -169,6 +169,32 @@ export class PostsService {
       return await this.facebookAuthService.publishInstagramPost(account.providerAccountId, account.accessToken, finalImageUrl, content);
     }
     else if (provider === 'TIKTOK') {
+      // 🛡️ REFRESH TOKEN AUTOMÁTICO PARA TIKTOK
+      const now = new Date();
+      const bufferTime = 5 * 60 * 1000; // 5 minutos
+      
+      if (account.refreshToken && (!account.accessTokenExpires || now.getTime() + bufferTime > new Date(account.accessTokenExpires).getTime())) {
+        try {
+          console.log(`[TIKTOK] 🔑 Token expirado o por expirar para la cuenta ${account.username}. Refrescando...`);
+          const newTokens = await this.tiktokAuthService.refreshToken(account.refreshToken);
+          
+          // Actualizar el objeto en memoria para la ejecución actual
+          account.accessToken = newTokens.accessToken;
+          
+          // Persistir en base de datos para futuras publicaciones
+          await this.socialAccountsService.update(account.id, {
+            accessToken: newTokens.accessToken,
+            refreshToken: newTokens.refreshToken,
+            accessTokenExpires: newTokens.expiresAt
+          }, account.workspaceId);
+          
+          console.log("[TIKTOK] ✅ Token renovado y guardado en DB correctamente.");
+        } catch (refreshError) {
+          console.error("[TIKTOK] ❌ Error crítico al refrescar token:", refreshError.message);
+          throw new Error("TIKTOK_SESSION_EXPIRED: Tu sesión de TikTok ha caducado y no se pudo renovar automáticamente. Por favor, desvincula y vuelve a vincular tu cuenta de TikTok.");
+        }
+      }
+
       if (!finalImageUrl) throw new Error("VIDEO_REQUIRED_FOR_TIKTOK");
       
       // 0. Validar requisitos de video (Básico)
