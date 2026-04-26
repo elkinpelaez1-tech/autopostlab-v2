@@ -3,7 +3,7 @@ import { TikTokAuthService } from './tiktok-auth.service';
 import { SocialAccountsService } from './social-accounts.service';
 import type { Response } from 'express';
 
-@Controller('tiktok')
+@Controller('tk-auth')
 export class TikTokController {
   private readonly logger = new Logger(TikTokController.name);
 
