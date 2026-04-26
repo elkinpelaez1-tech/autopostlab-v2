@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // baseURL: 'https://unprecipitative-nonplausibly-dilan.ngrok-free.dev/api', // 👈 Para pruebas externas de Meta
-  baseURL: `${import.meta.env.VITE_API_URL}/api` || 'http://localhost:3001/api',
+  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3001').endsWith('/api') 
+    ? (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+    : `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api`,
   withCredentials: true,
 });
 

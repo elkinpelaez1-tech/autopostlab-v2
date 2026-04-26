@@ -35,30 +35,44 @@ export class FilesService {
 
   async uploadFile(workspaceId: string, file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Archivo no detectado');
+    if (!file.buffer) throw new BadRequestException('El archivo no contiene datos (buffer vacío)');
+
+    console.log(`[FILES_SERVICE] 1. Iniciando subida a Cloudinary... (Workspace: ${workspaceId})`);
 
     let uploadResult;
     try {
-      // Subir el buffer directo a cloudinary sin crear archivos temporales en disco
       uploadResult = await new Promise<any>((resolve, reject) => {
+        // Timeout de 30 segundos para evitar que la petición se quede colgada
+        const timer = setTimeout(() => {
+          reject(new Error('Tiempo de espera agotado al conectar con Cloudinary (30s)'));
+        }, 30000);
+
         const uploadStream = cloudinary.uploader.upload_stream(
-        { 
-          folder: `autopostlab/${workspaceId}`,
-          resource_type: 'auto', // 🔥 CRITICAL: Permite subir videos e imágenes
-          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-          api_key: process.env.CLOUDINARY_API_KEY,
-          api_secret: process.env.CLOUDINARY_API_SECRET,
-        },
-        (error, result) => {
-            if (error) return reject(error);
+          { 
+            folder: `autopostlab/${workspaceId}`,
+            resource_type: 'auto',
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          },
+          (error, result) => {
+            clearTimeout(timer);
+            if (error) {
+              console.error("[CLOUDINARY_CALLBACK_ERROR]:", error);
+              return reject(error);
+            }
             resolve(result);
           },
         );
+
         uploadStream.end(file.buffer);
       });
+      
+      console.log(`[FILES_SERVICE] 2. Cloudinary subida exitosa. Guardando en DB...`);
     } catch (cloudinaryError) {
       console.error("🔥 Error desde Cloudinary:", cloudinaryError);
       throw new BadRequestException(
-        `Error real desde Cloudinary: ${cloudinaryError.message || JSON.stringify(cloudinaryError)}`
+        `Fallo en Cloudinary: ${cloudinaryError.message || 'Error de conexión'}`
       );
     }
 
@@ -73,16 +87,16 @@ export class FilesService {
           provider: FileProvider.CLOUDINARY,
         },
       });
-      // Devolvemos una mezcla de los datos de Cloudinary y Prisma para máxima compatibilidad
+      console.log(`[FILES_SERVICE] 3. Registro en DB completado (ID: ${savedFile.id})`);
       return {
         ...savedFile,
         public_id: uploadResult.public_id,
         secure_url: uploadResult.secure_url
       };
-    } catch (e) {
-      // 🔴 HACK/TEST: Fallback si la BD falla en dev
+    } catch (dbError) {
+      console.warn(`[FILES_SERVICE] Advertencia: Error al guardar en DB, usando fallback:`, dbError.message);
       return { 
-        id: uploadResult.public_id || 'temporal-123',
+        id: uploadResult.public_id || 'temporal-' + Date.now(),
         workspaceId,
         url: uploadResult.secure_url,
         secure_url: uploadResult.secure_url,

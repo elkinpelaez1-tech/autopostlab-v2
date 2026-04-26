@@ -9,7 +9,9 @@ export class UploadController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+  }))
   async upload(@UploadedFile() file: Express.Multer.File, @Request() req) {
     if (!file) {
       throw new BadRequestException('Archivo es requerido');
@@ -17,16 +19,19 @@ export class UploadController {
 
     const workspaceId = req.user.workspaceId || 'default-workspace';
     
-    console.log(`[UPLOAD_START] Workspace: ${workspaceId}, File: ${file.originalname}`);
+    console.log(`[UPLOAD_START] Workspace: ${workspaceId}, File: ${file.originalname}, Size: ${file.size}, Mime: ${file.mimetype}`);
     
-    const result = await this.filesService.uploadFile(workspaceId, file);
-    
-    console.log('UPLOAD RESULT:', result);
-    
-    // 🔥 Garantizar el formato esperado por el frontend
-    return {
-      id: result.public_id || result.id,
-      url: result.secure_url || result.url
-    };
+    try {
+      const result = await this.filesService.uploadFile(workspaceId, file);
+      console.log(`[UPLOAD_SUCCESS] File ${file.originalname} uploaded to Cloudinary`);
+      
+      return {
+        id: result.public_id || result.id,
+        url: result.secure_url || result.url
+      };
+    } catch (error) {
+      console.error(`[UPLOAD_ERROR] Workspace: ${workspaceId}, File: ${file.originalname}, Error:`, error.message || error);
+      throw error;
+    }
   }
 }
