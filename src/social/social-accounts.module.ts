@@ -16,5 +16,9 @@ import { AuthModule } from '../auth/auth.module';
   providers: [SocialAccountsService, FacebookAuthService, LinkedinAuthService, TikTokAuthService, PrismaService],
   exports: [SocialAccountsService, FacebookAuthService, LinkedinAuthService, TikTokAuthService],
 })
-export class SocialAccountsModule { }
+export class SocialAccountsModule {
+  constructor() {
+    console.log('🚀 [INIT] SocialAccountsModule (TikTok, FB, LinkedIn) cargado correctamente.');
+  }
+}
 
