@@ -101,19 +101,10 @@ export class FilesService {
         secure_url: uploadResult.secure_url
       };
     } catch (dbError) {
-      console.warn(`[FILES_SERVICE] Advertencia: Error al guardar en DB, usando fallback:`, dbError.message);
-      return { 
-        id: uploadResult.public_id || 'temporal-' + Date.now(),
-        workspaceId,
-        url: uploadResult.secure_url,
-        secure_url: uploadResult.secure_url,
-        public_id: uploadResult.public_id,
-        mimeType: file.mimetype,
-        sizeBytes: file.size,
-        provider: FileProvider.CLOUDINARY,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+      console.error(`[FILES_SERVICE] Error FATAL al guardar en DB:`, dbError);
+      throw new BadRequestException(
+        `Error al registrar archivo en DB: ${dbError.message || 'Conflicto de Workspace'}`
+      );
     }
   }
 
