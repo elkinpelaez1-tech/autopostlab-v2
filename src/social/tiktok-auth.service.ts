@@ -15,15 +15,17 @@ export class TikTokAuthService {
     this.redirectUri = this.configService.get<string>('TIKTOK_REDIRECT_URI') || '';
   }
 
-  /**
-   * Genera la URL de autorización para TikTok V2
-   */
   getAuthorizationUrl(workspaceId: string): string {
+    const clientKey = this.configService.get<string>('TIKTOK_CLIENT_KEY');
+    const redirectUri = this.configService.get<string>('TIKTOK_REDIRECT_URI');
+
+    console.log(`[TIKTOK_DEBUG] Generando URL con ClientKey: ${clientKey?.substring(0, 5)}... y Redirect: ${redirectUri}`);
+
     const baseUrl = 'https://www.tiktok.com/v2/auth/authorize/';
     const params = new URLSearchParams({
-      client_key: this.clientKey,
+      client_key: clientKey || '',
       response_type: 'code',
-      redirect_uri: this.redirectUri,
+      redirect_uri: redirectUri || '',
       state: workspaceId,
     });
 
@@ -36,13 +38,16 @@ export class TikTokAuthService {
    */
   async exchangeCodeForToken(code: string) {
     const url = 'https://open.tiktokapis.com/v2/oauth/token/';
+    const clientKey = this.configService.get<string>('TIKTOK_CLIENT_KEY');
+    const clientSecret = this.configService.get<string>('TIKTOK_CLIENT_SECRET');
+    const redirectUri = this.configService.get<string>('TIKTOK_REDIRECT_URI');
     
     const params = new URLSearchParams();
-    params.append('client_key', this.clientKey);
-    params.append('client_secret', this.clientSecret);
+    params.append('client_key', clientKey || '');
+    params.append('client_secret', clientSecret || '');
     params.append('code', code);
     params.append('grant_type', 'authorization_code');
-    params.append('redirect_uri', this.redirectUri);
+    params.append('redirect_uri', redirectUri || '');
 
     try {
       const response = await axios.post(url, params, {
@@ -118,10 +123,12 @@ export class TikTokAuthService {
    */
   async refreshToken(refreshToken: string) {
     const url = 'https://open.tiktokapis.com/v2/oauth/token/';
-    
+    const clientKey = this.configService.get<string>('TIKTOK_CLIENT_KEY');
+    const clientSecret = this.configService.get<string>('TIKTOK_CLIENT_SECRET');
+
     const params = new URLSearchParams();
-    params.append('client_key', this.clientKey);
-    params.append('client_secret', this.clientSecret);
+    params.append('client_key', clientKey || '');
+    params.append('client_secret', clientSecret || '');
     params.append('grant_type', 'refresh_token');
     params.append('refresh_token', refreshToken);
 
