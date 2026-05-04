@@ -30,7 +30,7 @@ export class TikTokAuthService {
     });
 
     // We append the scope manually to ensure the comma is not encoded as %2C
-    return `${baseUrl}?${params.toString()}&scope=user.info.basic,video.upload`;
+    return `${baseUrl}?${params.toString()}&scope=user.info.basic,video.upload,video.publish`;
   }
 
   /**
@@ -67,6 +67,9 @@ export class TikTokAuthService {
       const tokenPayload = data.data ? data.data : data;
 
       // Estructura sugerida por el usuario: openId, accessToken, refreshToken, expiresAt
+      console.log('TIKTOK ACCESS TOKEN:', tokenPayload.access_token);
+      console.log('TIKTOK REFRESH TOKEN:', tokenPayload.refresh_token);
+
       return {
         accessToken: tokenPayload.access_token,
         refreshToken: tokenPayload.refresh_token,
@@ -208,6 +211,138 @@ export class TikTokAuthService {
   }
 
   /**
+   * Inicializa la subida de un video para Direct Post (Publicación Directa)
+   * Doc: https://developers.tiktok.com/doc/content-posting-api-v2-post-publish-video-init/
+   */
+  async initializeDirectUpload(accessToken: string, videoSize: number) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+    
+    console.log(`[TIKTOK] Direct init URL: ${url} | videoSize=${videoSize}`);
+
+    const body = {
+      source_info: {
+        source: 'FILE_UPLOAD',
+        video_size: videoSize,
+        chunk_size: videoSize, // Subimos todo en un solo chunk
+        total_chunk_count: 1,
+      }
+    };
+
+    try {
+      if (!accessToken || accessToken === 'undefined') {
+        throw new Error("TikTok API Request blocked: Access Token is missing or undefined.");
+      }
+
+      this.logger.log(`Inicializando upload directo en TikTok. Tamaño: ${videoSize} bytes`);
+
+      const response = await axios.post(url, body, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.data.error && response.data.error.code !== 'ok') {
+        this.logger.error('TikTok Direct Init Detailed Error:', JSON.stringify(response.data, null, 2));
+        throw new Error(`TikTok Direct Init Error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
+      }
+
+      console.log("TIKTOK DIRECT INIT RESPONSE:", JSON.stringify(response.data, null, 2));
+      console.log('VIDEO_ID REAL:', response.data.data.upload_info?.video_id);
+      console.log('PUBLISH_ID REAL:', response.data.data.publish_id);
+      this.logger.log(`✅ Upload directo inicializado. Publish ID/Video ID: ${response.data.data.publish_id}`);
+      return response.data.data; // Contiene publish_id y upload_url
+    } catch (error) {
+      console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
+      console.log('TIKTOK ERROR STATUS:', error.response?.status);
+      console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
+      const apiDetail = error.response?.data?.error?.message || error.response?.data?.message;
+      throw new Error(apiDetail ? `TikTok Direct Init API: ${apiDetail}` : error.message);
+    }
+  }
+
+  /**
+   * Ejecuta el paso final de publicación en TikTok.
+   * Doc: https://developers.tiktok.com/doc/content-posting-api-v2-video-publish/
+   */
+  async publishVideo(accessToken: string, publishId: string, videoId: string, title: string) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/video/';
+    
+    console.log(`[TIKTOK] Final publish URL: ${url} | publish_id=${publishId} | video_id=${videoId}`);
+    console.log('PUBLISH_ID:', publishId);
+    console.log('VIDEO_ID:', videoId);
+    console.log('TOKEN SCOPES TEST');
+
+    try {
+      const tokenTestRes = await axios.get('https://open.tiktokapis.com/v2/user/info/', {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      console.log('TOKEN VALID:', tokenTestRes.data);
+    } catch (e) {
+      console.log('TOKEN TEST ERROR:', e.response?.data || e.message);
+    }
+
+    const body = {
+      post_info: {
+        title: title || "test",
+        privacy_level: "SELF_ONLY",
+        disable_comment: false,
+        disable_duet: false,
+        disable_stitch: false,
+        cover_timestamp_ms: 0,
+        media_type: "VIDEO"
+      },
+      source_info: {
+        source: "FILE_UPLOAD",
+        video_id: videoId
+      }
+    };
+
+    console.log('FINAL PAYLOAD:', JSON.stringify(body, null, 2));
+
+    try {
+      if (!accessToken || accessToken === 'undefined') {
+        throw new Error("TikTok API Request blocked: Access Token is missing or undefined.");
+      }
+
+      const response = await axios.post(url, body, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('TIKTOK RESPONSE RAW:', response.data);
+
+      console.log("TIKTOK RESPONSE RECEIVED:", JSON.stringify({
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      }, null, 2));
+
+      if (response.data.error && response.data.error.code !== 'ok') {
+        const errorMsg = `TikTok Final Publish Error (${response.status}): ${response.data.error.message || JSON.stringify(response.data.error)}`;
+        this.logger.error(errorMsg, JSON.stringify(response.data, null, 2));
+        throw new Error(errorMsg);
+      }
+
+      console.log("TIKTOK FINAL PUBLISH RESPONSE:", JSON.stringify(response.data, null, 2));
+      this.logger.log(`✅ Video publicado con éxito en TikTok.`);
+      return response.data.data;
+    } catch (error) {
+      console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
+      console.log('TIKTOK ERROR STATUS:', error.response?.status);
+      console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
+
+      if (error.response && error.response.data) {
+        throw new Error(JSON.stringify(error.response.data));
+      }
+
+      throw new Error('NO_ERROR_DATA');
+    }
+  }
+
+  /**
    * Sube el archivo binario a la URL proporcionada por TikTok
    */
   async uploadVideoFile(uploadUrl: string, videoBuffer: Buffer) {
@@ -229,10 +364,42 @@ export class TikTokAuthService {
       this.logger.log(`✅ Transferencia de video completada. Status: ${response.status}`);
       return response.status === 200 || response.status === 201;
     } catch (error) {
-      console.log("TIKTOK FINAL ERROR (Upload):", JSON.stringify(error.response?.data, null, 2));
-      console.log("TIKTOK UPLOAD ERROR RAW:", error);
+      console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
+      console.log('TIKTOK ERROR STATUS:', error.response?.status);
+      console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
       const apiDetail = error.response?.data?.error?.message || error.response?.data?.message;
       throw new Error(apiDetail ? `TikTok API Upload: ${apiDetail}` : error.message);
+    }
+  }
+
+  /**
+   * Consulta el estado del video subido antes de publicarlo.
+   */
+  async checkVideoStatus(accessToken: string, videoId: string) {
+    const url = `https://open.tiktokapis.com/v2/post/publish/status/?video_id=${videoId}`;
+    
+    try {
+      if (!accessToken || accessToken === 'undefined') {
+        throw new Error("TikTok API Request blocked: Access Token is missing or undefined.");
+      }
+
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.data.error && response.data.error.code !== 'ok') {
+        throw new Error(`TikTok Video Status Error: ${JSON.stringify(response.data.error)}`);
+      }
+
+      return response.data.data;
+    } catch (error) {
+      console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
+      console.log('TIKTOK ERROR STATUS:', error.response?.status);
+      console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
+      throw error;
     }
   }
 
@@ -266,8 +433,9 @@ export class TikTokAuthService {
       // No lanzamos error aquí si el estado es intermedio (ej. PROCESSING)
       return response.data.data;
     } catch (error) {
-      console.log("TIKTOK FINAL ERROR (Status):", JSON.stringify(error.response?.data, null, 2));
-      console.log("TIKTOK STATUS ERROR RAW:", error);
+      console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
+      console.log('TIKTOK ERROR STATUS:', error.response?.status);
+      console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
       throw error;
     }
   }

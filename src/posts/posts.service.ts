@@ -218,21 +218,65 @@ export class PostsService {
 
       console.log(`[TIKTOK] ✅ Video listo (${videoBuffer.length} bytes). Iniciando flujo multi-step.`);
 
-      // 2. Inicializar upload
-      const initData = await this.tiktokAuthService.initializeInboxUpload(account.accessToken, videoBuffer.length, content);
-      console.log(`[TIKTOK] 1/3 Init OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
-      
-      // 3. Subir archivo
-      console.log(`[TIKTOK] 2/3 Subiendo bytes... (Content-Length: ${videoBuffer.length})`);
-      await this.tiktokAuthService.uploadVideoFile(initData.upload_url, videoBuffer);
-      console.log(`[TIKTOK] 🚀 Upload binario completado.`);
+      try {
+        // 2. Inicializar upload con Direct Post API
+        console.log(`[TIKTOK] Intentando inicializar upload directo...`);
+        const initData = await this.tiktokAuthService.initializeDirectUpload(account.accessToken, videoBuffer.length);
+        console.log(`[TIKTOK] 1/4 Init OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
+        
+        // 3. Subir archivo
+        console.log(`[TIKTOK] 2/4 Subiendo bytes... (Content-Length: ${videoBuffer.length})`);
+        await this.tiktokAuthService.uploadVideoFile(initData.upload_url, videoBuffer);
+        console.log(`[TIKTOK] 🚀 Upload binario completado.`);
 
-      // 4. Validar estado final
-      console.log(`[TIKTOK] 3/3 Consultando estado final para publish_id: ${initData.publish_id}`);
-      const finalStatus = await this.tiktokAuthService.getPublishStatus(account.accessToken, initData.publish_id);
-      console.log(`[TIKTOK] ✨ Estado en TikTok: ${JSON.stringify(finalStatus)}`);
-      
-      return initData.publish_id;
+        // 4. Publicar video (Paso final obligatorio)
+        const publishId = initData.publish_id;
+        const videoId = initData.upload_info?.video_id || initData.video_id || publishId; // Fallback to publish_id if upload_info is not present for some reason
+
+        if (!publishId || !videoId) {
+          throw new Error("No se obtuvo video_id o publish_id del paso de inicialización de TikTok.");
+        }
+
+        console.log(`[TIKTOK] 3/4 Verificando estado del video con video_id: ${videoId}`);
+        let isReady = false;
+        let attempts = 0;
+        const maxAttempts = 5;
+        let finalStatus = 'UNKNOWN';
+
+        while (!isReady && attempts < maxAttempts) {
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const statusRes = await this.tiktokAuthService.checkVideoStatus(account.accessToken, videoId);
+          console.log(`[TIKTOK] Polling intento ${attempts}: status = ${statusRes?.status}`);
+          finalStatus = statusRes?.status;
+          
+          if (finalStatus === "READY") {
+            isReady = true;
+          }
+        }
+
+        console.log('VIDEO STATUS FINAL:', finalStatus);
+
+        if (!isReady) {
+          throw new Error(`El video no alcanzó el estado READY. Último estado conocido.`);
+        }
+
+        console.log(`[TIKTOK] 4/4 Publicando video con publish_id: ${publishId} y video_id: ${videoId}`);
+        const publishRes = await this.tiktokAuthService.publishVideo(account.accessToken, publishId, videoId, content);
+        console.log(`[TIKTOK] ✨ Respuesta de publicación de TikTok:`, JSON.stringify(publishRes));
+
+        // 5. Validar estado final
+        console.log(`[TIKTOK] 4/4 Consultando estado final para publish_id: ${initData.publish_id}`);
+        const finalStatus = await this.tiktokAuthService.getPublishStatus(account.accessToken, initData.publish_id);
+        console.log(`[TIKTOK] ✨ Estado en TikTok: ${JSON.stringify(finalStatus)}`);
+        
+        return initData.publish_id;
+      } catch (error) {
+        console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
+        console.log('TIKTOK ERROR STATUS:', error.response?.status);
+        console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
+        throw error;
+      }
     }
     throw new Error(`Proveedor ${provider} no soportado.`);
   }
