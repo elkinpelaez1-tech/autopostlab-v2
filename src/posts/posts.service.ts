@@ -267,7 +267,7 @@ export class PostsService {
 
         // 5. Validar estado final
         console.log(`[TIKTOK] 4/4 Consultando estado final para publish_id: ${initData.publish_id}`);
-        const finalStatus = await this.tiktokAuthService.getPublishStatus(account.accessToken, initData.publish_id);
+        finalStatus = await this.tiktokAuthService.getPublishStatus(account.accessToken, initData.publish_id);
         console.log(`[TIKTOK] ✨ Estado en TikTok: ${JSON.stringify(finalStatus)}`);
         
         return initData.publish_id;
