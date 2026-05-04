@@ -171,12 +171,7 @@ export class TikTokAuthService {
     const body = {
       source_info: {
         source: 'FILE_UPLOAD',
-        video_size: videoSize,
-        chunk_size: videoSize, // Para simplificar, subimos todo en un chunk si es < 50MB
-        total_chunk_count: 1,
-      },
-      post_info: {
-        caption: text
+        video_size: videoSize
       }
     };
 
