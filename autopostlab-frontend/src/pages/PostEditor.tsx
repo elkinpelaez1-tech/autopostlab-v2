@@ -575,18 +575,33 @@ const PostEditor: React.FC = () => {
               <button 
                 className="btn-primary" 
                 style={{ width: '100%', padding: '0.8rem', justifyContent: 'center' }}
-                onClick={() => {
-                  console.log("Intención de pago registrada: Usuario hizo clic en Actualizar a PRO");
-                  alert("Próximamente habilitaremos pagos. ¡Gracias por tu interés!");
-                  setShowUpgradeModal(false);
+                disabled={isSubmitting}
+                onClick={async () => {
+                  try {
+                    setIsSubmitting(true);
+                    const response = await api.post('/billing/create-checkout', { 
+                      organizationId: user?.organizationId, 
+                      plan: 'PRO' 
+                    });
+                    if (response.data && response.data.checkoutUrl) {
+                      window.location.href = response.data.checkoutUrl;
+                    } else {
+                      throw new Error('No se recibió la URL de pago');
+                    }
+                  } catch (error: any) {
+                    console.error('Error al generar link de pago:', error);
+                    alert(error.response?.data?.message || 'Hubo un error al conectar con el procesador de pagos. Por favor intenta de nuevo.');
+                    setIsSubmitting(false);
+                  }
                 }}
               >
-                Actualizar a PRO
+                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Actualizar a PRO'}
               </button>
               <button 
                 className="btn-secondary" 
                 style={{ width: '100%', border: 'none', background: 'transparent', justifyContent: 'center' }}
                 onClick={() => setShowUpgradeModal(false)}
+                disabled={isSubmitting}
               >
                 Más tarde
               </button>
