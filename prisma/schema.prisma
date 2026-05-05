@@ -191,6 +191,8 @@ model Organization {
   id             String          @id @default(uuid())
   name           String
   plan           OrgPlan         @default(FREE)
+  planExpiresAt  DateTime?
+  hadPro         Boolean         @default(false)
   createdAt      DateTime        @default(now())
   posts          Post[]
   socialAccounts SocialAccount[]

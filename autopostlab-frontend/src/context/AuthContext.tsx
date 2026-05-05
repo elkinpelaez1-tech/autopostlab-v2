@@ -9,6 +9,8 @@ interface User {
   workspaceId: string;
   avatarUrl?: string | null;
   plan?: string;
+  planExpiresAt?: string | null;
+  hadPro?: boolean;
 }
 
 interface AuthContextType {
@@ -70,6 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 workspaceId: userData.workspaceId || decoded.workspaceId,
                 avatarUrl: userData.avatarUrl || null,
                 plan: userData.organization?.plan || 'FREE',
+                planExpiresAt: userData.organization?.planExpiresAt || null,
+                hadPro: userData.organization?.hadPro || false,
               });
             } catch (fetchError) {
               console.error('Error sincronizando perfil desde backend:', fetchError);
@@ -80,6 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 workspaceId: decoded.workspaceId,
                 avatarUrl: decoded.avatarUrl || null,
                 plan: 'FREE',
+                planExpiresAt: null,
+                hadPro: false,
               });
             }
           }

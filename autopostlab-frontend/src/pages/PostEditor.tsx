@@ -292,8 +292,43 @@ const PostEditor: React.FC = () => {
     }
   };
 
+  const planExpiresAt = user?.planExpiresAt ? new Date(user.planExpiresAt) : null;
+  const hadPro = user?.hadPro || false;
+  let daysLeft = null;
+  
+  if (planExpiresAt) {
+    const timeDiff = planExpiresAt.getTime() - new Date().getTime();
+    daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  }
+
+  const isExpired = plan === 'FREE' && hadPro;
+
   return (
     <div className="dashboard-container" onClick={() => setShowMoreOptions(false)}>
+      
+      {/* Subscription Banners */}
+      {plan === 'PRO' && planExpiresAt && daysLeft !== null && daysLeft <= 5 && daysLeft >= 0 && (
+        <div style={{ background: '#f59e0b', color: 'white', padding: '0.8rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertCircle size={18} />
+          <span style={{ fontWeight: 600 }}>Tu suscripción vence pronto ({daysLeft} días).</span> Renueva para no perder tus beneficios.
+        </div>
+      )}
+
+      {isExpired && (
+        <div style={{ background: '#ef4444', color: 'white', padding: '0.8rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={18} />
+            <span style={{ fontWeight: 600 }}>Tu plan ha expirado.</span> Vuelve a PRO para continuar sin límites.
+          </div>
+          <button 
+            onClick={() => setShowUpgradeModal(true)}
+            style={{ background: 'white', color: '#ef4444', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            Actualizar
+          </button>
+        </div>
+      )}
+
       <div className="dashboard-welcome">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -303,7 +338,14 @@ const PostEditor: React.FC = () => {
           
           <div className="plan-usage-card">
             <div className="plan-usage-header">
-              <span className="plan-badge">Plan: {plan}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <span className="plan-badge">Plan: {plan}</span>
+                {plan === 'PRO' && planExpiresAt && (
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    Vence el {planExpiresAt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                )}
+              </div>
               {isUnlimited ? (
                 <span className="usage-text">Publicaciones ilimitadas</span>
               ) : (

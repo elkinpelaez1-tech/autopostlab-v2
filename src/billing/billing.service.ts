@@ -119,19 +119,32 @@ export class BillingService {
       throw new BadRequestException('Organización no encontrada');
     }
 
-    if (org.plan === 'PRO') {
-      this.logger.log('La organización ya era PRO. Omitiendo.');
-      return { success: true, status: 'ALREADY_PRO' };
+    const now = new Date();
+    let newExpiresAt = new Date();
+
+    if (org.plan === 'PRO' && org.planExpiresAt && org.planExpiresAt > now) {
+      // Extender desde la fecha de expiración actual si ya es PRO y no ha expirado
+      newExpiresAt = new Date(org.planExpiresAt);
+      newExpiresAt.setDate(newExpiresAt.getDate() + 30);
+      this.logger.log(`Extendiendo plan PRO para ${organizationId} hasta ${newExpiresAt}`);
+    } else {
+      // Contar desde hoy si expiró o es la primera vez
+      newExpiresAt.setDate(now.getDate() + 30);
+      this.logger.log(`Nuevo plan PRO para ${organizationId} válido hasta ${newExpiresAt}`);
     }
 
-    // Actualizar el plan a PRO
+    // Actualizar el plan a PRO y establecer expiración
     await this.prisma.organization.update({
       where: { id: organizationId },
-      data: { plan: 'PRO' }
+      data: { 
+        plan: 'PRO',
+        planExpiresAt: newExpiresAt,
+        hadPro: true
+      }
     });
 
     this.logger.log(`✅ Organización ${organizationId} actualizada a PRO exitosamente`);
 
-    return { success: true, status: 'UPGRADED' };
+    return { success: true, status: 'UPGRADED', expiresAt: newExpiresAt };
   }
 }
