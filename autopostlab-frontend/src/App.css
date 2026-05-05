@@ -2066,6 +2066,12 @@ body {
   background-position: right 16px center;
 }
 
+.premium-select option,
+.premium-select optgroup {
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
 .premium-select:focus {
   border-color: var(--accent);
 }
