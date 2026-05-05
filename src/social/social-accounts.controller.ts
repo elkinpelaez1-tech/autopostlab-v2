@@ -15,9 +15,10 @@ import { CreateSocialAccountDto } from './dto/create-social-account.dto';
 import { UpdateSocialAccountDto } from './dto/update-social-account.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
 
 @Controller('social-accounts')
-@UseGuards(JwtAuthGuard) // 👈 Rutas protegidas
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class SocialAccountsController {
   constructor(private readonly socialAccountsService: SocialAccountsService) {}
 

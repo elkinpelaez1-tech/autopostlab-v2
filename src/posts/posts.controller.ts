@@ -2,9 +2,10 @@ import { Controller, Get, Post, Body, UseGuards, Request, HttpException, HttpSta
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
 
 @Controller('posts')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 

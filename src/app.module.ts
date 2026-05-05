@@ -16,8 +16,7 @@ import * as fs from 'fs';
 
 import { UploadController } from './upload.controller';
 
-import { APP_GUARD } from '@nestjs/core';
-import { TenantGuard } from './auth/guards/tenant.guard';
+
 
 @Module({
   imports: [
@@ -34,10 +33,6 @@ import { TenantGuard } from './auth/guards/tenant.guard';
   controllers: [AppController, UploadController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: TenantGuard,
-    },
   ],
 })
 export class AppModule implements NestModule {

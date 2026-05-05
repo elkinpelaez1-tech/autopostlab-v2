@@ -6,17 +6,17 @@ export class TenantGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // Si no hay usuario, es una ruta pública (no pasó por JwtAuthGuard)
+    // El TenantGuard debe usarse SIEMPRE después del JwtAuthGuard.
+    // Si no hay usuario, es un error de configuración del desarrollador.
     if (!user) {
-      return true;
+      return true; // Dejamos pasar para no romper rutas públicas, pero no inyectamos nada.
     }
 
-    // Si hay usuario autenticado, DEBE tener organizationId
     if (!user.organizationId) {
-      throw new ForbiddenException('User does not belong to any organization. Tenant access blocked.');
+      throw new ForbiddenException('Acceso denegado: El usuario no tiene una organización vinculada.');
     }
 
-    // Agregar organizationId al request
+    // Inyectamos el organizationId en el request para que los controladores lo usen.
     request.organizationId = user.organizationId;
 
     return true;
