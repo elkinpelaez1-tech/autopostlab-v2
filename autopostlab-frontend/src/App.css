@@ -354,6 +354,66 @@ body {
   margin-top: 0.4rem;
 }
 
+.btn-upgrade-sm {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0.4rem;
+}
+
+.btn-upgrade-sm:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.upgrade-modal {
+  max-width: 450px !important;
+  text-align: center;
+  padding: 2rem !important;
+}
+
+.upgrade-subtitle {
+  color: var(--text-contrast);
+  opacity: 0.8;
+  margin: 0.5rem 0 1.5rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.upgrade-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem 0;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.upgrade-features li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+.upgrade-features li:last-child {
+  margin-bottom: 0;
+}
+
+.upgrade-features li svg {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
 .dashboard.bi-subtitle {
   color: var(--text-contrast);
   opacity: 0.7;

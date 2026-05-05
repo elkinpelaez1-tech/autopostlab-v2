@@ -50,6 +50,7 @@ const PostEditor: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -231,6 +232,11 @@ const PostEditor: React.FC = () => {
     if (!isDraft && selectedAccounts.length === 0) return alert('Selecciona al menos una red social.');
     if (!isDraft && !publishNow && !scheduledAt) return alert('Selecciona una fecha y hora para programar.');
 
+    if (usagePercentage >= 100 && !isUnlimited) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     const selectedProviders = accounts
       .filter(a => selectedAccounts.includes(a.id))
       .map(a => typeof a.provider === "string" ? a.provider.toUpperCase() : "");
@@ -276,7 +282,11 @@ const PostEditor: React.FC = () => {
 
       // Handle the ForbiddenException effectively to display to user
       const errMessage = error.response?.data?.message || error.message;
-      alert(errMessage);
+      if (error.response?.status === 403 && (errMessage.toLowerCase().includes('límite') || errMessage.toLowerCase().includes('plan'))) {
+        setShowUpgradeModal(true);
+      } else {
+        alert(errMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -547,6 +557,43 @@ const PostEditor: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {showUpgradeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content upgrade-modal">
+            <h2>🚀 Desbloquea más capacidad</h2>
+            <p className="upgrade-subtitle">Lleva tu estrategia de redes al siguiente nivel con el plan PRO.</p>
+            
+            <ul className="upgrade-features">
+              <li><CheckCircle2 size={16} /> Hasta 5 cuentas sociales</li>
+              <li><CheckCircle2 size={16} /> Hasta 200 publicaciones al mes</li>
+              <li><CheckCircle2 size={16} /> Programación avanzada</li>
+              <li><CheckCircle2 size={16} /> Métricas completas</li>
+            </ul>
+
+            <div className="modal-actions" style={{ flexDirection: 'column', gap: '0.8rem' }}>
+              <button 
+                className="btn-primary" 
+                style={{ width: '100%', padding: '0.8rem', justifyContent: 'center' }}
+                onClick={() => {
+                  console.log("Intención de pago registrada: Usuario hizo clic en Actualizar a PRO");
+                  alert("Próximamente habilitaremos pagos. ¡Gracias por tu interés!");
+                  setShowUpgradeModal(false);
+                }}
+              >
+                Actualizar a PRO
+              </button>
+              <button 
+                className="btn-secondary" 
+                style={{ width: '100%', border: 'none', background: 'transparent', justifyContent: 'center' }}
+                onClick={() => setShowUpgradeModal(false)}
+              >
+                Más tarde
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
