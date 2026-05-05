@@ -5,9 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
-  async getSummary(workspaceId: string) {
+  async getSummary(workspaceId: string, organizationId: string) {
     const posts = await this.prisma.post.findMany({
-      where: { workspaceId },
+      where: { workspaceId, organizationId },
       include: {
         scheduledPosts: {
           include: {
@@ -56,8 +56,8 @@ export class AnalyticsService {
     };
   }
 
-  async getAiReport(workspaceId: string) {
-    const summary = await this.getSummary(workspaceId);
+  async getAiReport(workspaceId: string, organizationId: string) {
+    const summary = await this.getSummary(workspaceId, organizationId);
     
     // Generar insights "reales" basados en los datos
     const insights = [

@@ -10,12 +10,14 @@ export class AnalyticsController {
   @Get('summary')
   async getSummary(@Request() req) {
     const workspaceId = req.user.workspaceId;
-    return this.analyticsService.getSummary(workspaceId);
+    const organizationId = req.organizationId;
+    return this.analyticsService.getSummary(workspaceId, organizationId);
   }
 
   @Get('ai-report')
   async getAiReport(@Request() req) {
     const workspaceId = req.user.workspaceId;
-    return this.analyticsService.getAiReport(workspaceId);
+    const organizationId = req.organizationId;
+    return this.analyticsService.getAiReport(workspaceId, organizationId);
   }
 }
