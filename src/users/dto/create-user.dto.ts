@@ -19,5 +19,5 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsEnum(Role)
-  role?: Role; // ← permitir ADMIN o USER
+  role?: Role;
 }

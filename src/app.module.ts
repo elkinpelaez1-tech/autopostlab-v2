@@ -16,6 +16,9 @@ import * as fs from 'fs';
 
 import { UploadController } from './upload.controller';
 
+import { APP_GUARD } from '@nestjs/core';
+import { TenantGuard } from './auth/guards/tenant.guard';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -29,7 +32,13 @@ import { UploadController } from './upload.controller';
     AnalyticsModule,
   ],
   controllers: [AppController, UploadController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: TenantGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

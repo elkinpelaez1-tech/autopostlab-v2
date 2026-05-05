@@ -13,12 +13,13 @@ export class SocialAccountsService {
   // ----------------------------------------------------------
   // 📌 Crear o Actualizar cuenta social (Upsert)
   // ----------------------------------------------------------
-  async create(dto: CreateSocialAccountDto, workspaceId: string) {
+  async create(dto: CreateSocialAccountDto, workspaceId: string, organizationId: string) {
     try {
-      // 1. Buscar si ya existe la combinación provider + providerAccountId en este workspace
+      // 1. Buscar si ya existe la combinación provider + providerAccountId en este workspace/org
       const existing = await this.prisma.socialAccount.findFirst({
         where: {
           workspaceId,
+          organizationId,
           provider: dto.provider,
           providerAccountId: dto.providerAccountId,
         },
@@ -44,6 +45,7 @@ export class SocialAccountsService {
       const result = await this.prisma.socialAccount.create({
         data: {
           workspaceId,
+          organizationId,
           provider: dto.provider,
           providerAccountId: dto.providerAccountId,
           username: dto.username ?? null,
@@ -66,9 +68,9 @@ export class SocialAccountsService {
   // ----------------------------------------------------------
   // 📌 Obtener todas las cuentas del usuario
   // ----------------------------------------------------------
-  async findAll(workspaceId: string) {
+  async findAll(workspaceId: string, organizationId: string) {
     return this.prisma.socialAccount.findMany({
-      where: { workspaceId },
+      where: { workspaceId, organizationId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -76,9 +78,9 @@ export class SocialAccountsService {
   // ----------------------------------------------------------
   // 📌 Obtener una cuenta social
   // ----------------------------------------------------------
-  async findOne(id: string, workspaceId: string) {
+  async findOne(id: string, workspaceId: string, organizationId: string) {
     const account = await this.prisma.socialAccount.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId, organizationId },
     });
 
     if (!account) throw new NotFoundException('Cuenta social no encontrada');
@@ -89,9 +91,9 @@ export class SocialAccountsService {
   // ----------------------------------------------------------
   // 📌 Actualizar cuenta social
   // ----------------------------------------------------------
-  async update(id: string, dto: UpdateSocialAccountDto, workspaceId: string) {
+  async update(id: string, dto: UpdateSocialAccountDto, workspaceId: string, organizationId: string) {
     // Verificar propiedad
-    await this.findOne(id, workspaceId);
+    await this.findOne(id, workspaceId, organizationId);
 
     return this.prisma.socialAccount.update({
       where: { id },
@@ -114,9 +116,9 @@ export class SocialAccountsService {
   // ----------------------------------------------------------
   // 📌 Eliminar cuenta social
   // ----------------------------------------------------------
-  async remove(id: string, workspaceId: string) {
+  async remove(id: string, workspaceId: string, organizationId: string) {
     // 1. Verificar propiedad y existencia
-    await this.findOne(id, workspaceId);
+    await this.findOne(id, workspaceId, organizationId);
 
     // 2. Limpieza en cascada manual (ScheduledPost)
     // Nota: El schema actual no tiene Cascade para ScheduledPost -> SocialAccount
@@ -140,9 +142,9 @@ export class SocialAccountsService {
   // ----------------------------------------------------------
   // 📌 Obtener una cuenta por plataforma y workspace
   // ----------------------------------------------------------
-  async findByWorkspaceAndProvider(workspaceId: string, provider: SocialProvider) {
+  async findByWorkspaceAndProvider(workspaceId: string, organizationId: string, provider: SocialProvider) {
     return this.prisma.socialAccount.findFirst({
-      where: { workspaceId, provider },
+      where: { workspaceId, organizationId, provider },
     });
   }
 }

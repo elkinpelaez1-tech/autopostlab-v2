@@ -222,9 +222,13 @@ const PostEditor: React.FC = () => {
       setScheduledAt('');
       setSelectedFiles([]);
       setShowMoreOptions(false);
-    } catch (err: any) {
-      console.error('Error al crear post:', err);
-      alert(err.response?.data?.message || 'Hubo un error al procesar el post.');
+    } catch (error: any) {
+      console.error('ERROR COMPLETO:', error);
+      console.error('ERROR RESPONSE:', error.response);
+      console.error('ERROR DATA:', error.response?.data);
+      console.error('ERROR MESSAGE:', error.message);
+
+      alert(error.message);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Res, Logger } from '@nestjs/common';
 import { TikTokAuthService } from './tiktok-auth.service';
 import { SocialAccountsService } from './social-accounts.service';
+import { PrismaService } from '../prisma/prisma.service';
 import type { Response } from 'express';
 
 @Controller('tiktok')
@@ -10,6 +11,7 @@ export class TikTokController {
   constructor(
     private readonly tiktokAuthService: TikTokAuthService,
     private readonly socialAccountsService: SocialAccountsService,
+    private readonly prisma: PrismaService,
   ) { }
 
   @Get('auth')
@@ -67,7 +69,7 @@ export class TikTokController {
         accessToken: tokenData.accessToken,
         refreshToken: tokenData.refreshToken,
         accessTokenExpires: tokenData.expiresAt,
-      }, workspaceId);
+      }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
 
       // 4. Redirigir al Frontend con éxito
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';

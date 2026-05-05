@@ -54,9 +54,11 @@ export class AuthService {
 
     const payload = {
       sub: user.id,
+      userId: user.id,
       email: user.email,
       role: user.role,
       workspaceId: workspaceId,
+      organizationId: user.organizationId,
       avatarUrl: user.avatarUrl,
     };
 
@@ -131,14 +133,19 @@ export class AuthService {
           email,
           name: name || 'Usuario de Autopostlab',
           password: hashedPassword,
-          role: Role.USER, 
+          role: Role.ADMIN, 
+          organization: {
+            create: {
+              name: 'Mi empresa',
+            }
+          },
           ownedWorkspaces: {
             create: {
               name: `Workspace de ${name || email.split('@')[0]}`,
             }
           }
         },
-        include: { ownedWorkspaces: true }
+        include: { ownedWorkspaces: true, organization: true }
       });
       workspaceId = user.ownedWorkspaces[0].id;
       this.logger.log(`Nuevo usuario creado con Workspace: ${workspaceId}`);
@@ -159,9 +166,11 @@ export class AuthService {
     // 4. Emitimos nuestros propios JWT (ya estamos logueados en Autopostlab)
     const jwtPayload = {
       sub: user.id,
+      userId: user.id,
       email: user.email,
       role: user.role,
       workspaceId: workspaceId, // <-- INYECTAMOS EL WORKSPACE REAL EN EL JWT
+      organizationId: user.organizationId,
       avatarUrl: user.avatarUrl,
     };
 
@@ -224,9 +233,11 @@ export class AuthService {
     const newAccessToken = await this.jwtService.signAsync(
       {
         sub: user.id,
+        userId: user.id,
         email: user.email,
         role: user.role,
         workspaceId: workspaceId,
+        organizationId: user.organizationId,
         avatarUrl: user.avatarUrl,
       },
       { expiresIn: '24h' },

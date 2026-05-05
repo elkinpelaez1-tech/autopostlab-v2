@@ -25,34 +25,39 @@ export class SocialAccountsController {
   @Post()
   create(@Body() dto: CreateSocialAccountDto, @Req() req: any) {
     const workspaceId = req.user.workspaceId;
-    return this.socialAccountsService.create(dto, workspaceId);
+    const organizationId = req.organizationId;
+    return this.socialAccountsService.create(dto, workspaceId, organizationId);
   }
 
   // Listar cuentas conectadas del usuario
   @Get()
   findAll(@Req() req: any) {
     const workspaceId = req.user.workspaceId;
-    return this.socialAccountsService.findAll(workspaceId);
+    const organizationId = req.organizationId;
+    return this.socialAccountsService.findAll(workspaceId, organizationId);
   }
 
   // Obtener una cuenta social por ID
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     const workspaceId = req.user.workspaceId;
-    return this.socialAccountsService.findOne(id, workspaceId);
+    const organizationId = req.organizationId;
+    return this.socialAccountsService.findOne(id, workspaceId, organizationId);
   }
 
   // Actualizar cuenta social
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateSocialAccountDto, @Req() req: any) {
     const workspaceId = req.user.workspaceId;
-    return this.socialAccountsService.update(id, dto, workspaceId);
+    const organizationId = req.organizationId;
+    return this.socialAccountsService.update(id, dto, workspaceId, organizationId);
   }
 
   // Eliminar cuenta social
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
     const workspaceId = req.user.workspaceId;
-    return this.socialAccountsService.remove(id, workspaceId);
+    const organizationId = req.organizationId;
+    return this.socialAccountsService.remove(id, workspaceId, organizationId);
   }
 }

@@ -4,6 +4,7 @@ import { LinkedinAuthService } from './linkedin-auth.service';
 import { TikTokAuthService } from './tiktok-auth.service';
 import { SocialAccountsService } from './social-accounts.service';
 import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../prisma/prisma.service';
 import type { Response } from 'express';
 
 @Controller('social-auth') // Con el prefix global /api, esto queda como /api/social-auth
@@ -16,6 +17,7 @@ export class SocialAuthController {
     private readonly tiktokAuthService: TikTokAuthService,
     private readonly socialAccountsService: SocialAccountsService,
     private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
   ) {
     this.logger.log('SOCIAL AUTH CONTROLLER LOADED');
     console.log('SOCIAL AUTH CONTROLLER LOADED');
@@ -105,7 +107,7 @@ export class SocialAuthController {
           displayName: account.displayName,
           avatarUrl: account.avatarUrl,
           accessToken: account.accessToken,
-        }, workspaceId);
+        }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
         console.log('ACCOUNT SAVED TO DB:', savedAccount);
       }
 
@@ -171,7 +173,7 @@ export class SocialAuthController {
         displayName: userData.name,
         avatarUrl: userData.picture,
         accessToken: accessToken,
-      }, workspaceId as string);
+      }, workspaceId as string, (await this.prisma.workspace.findUnique({ where: { id: workspaceId as string }, include: { owner: true } }))?.owner?.organizationId || '');
 
       // 4. Respuesta JSON (Temporalmente para evitar ERR_CONNECTION_REFUSED)
       return res.json({
@@ -227,7 +229,7 @@ export class SocialAuthController {
           displayName: account.displayName,
           avatarUrl: account.avatarUrl,
           accessToken: account.accessToken,
-        }, workspaceId);
+        }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
         results.push(acc);
       }
 
@@ -290,7 +292,7 @@ export class SocialAuthController {
         accessToken: tokenData.accessToken,
         refreshToken: tokenData.refreshToken,
         accessTokenExpires: tokenData.expiresAt,
-      }, workspaceId);
+      }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
 
       // D. Redirigir al Frontend con éxito
       const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app';
@@ -314,8 +316,10 @@ export class SocialAuthController {
     }
 
     // 1. Buscar la cuenta de LinkedIn en la base de datos
+    const orgId = (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '';
     const account = await this.socialAccountsService.findByWorkspaceAndProvider(
       workspaceId,
+      orgId,
       'LINKEDIN'
     );
 

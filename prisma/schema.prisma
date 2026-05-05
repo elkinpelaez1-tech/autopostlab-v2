@@ -14,13 +14,15 @@ model User {
   password        String
   avatarUrl       String?
   createdAt       DateTime       @default(now())
-  role            Role           @default(USER)
+  role            Role           @default(ADMIN)
   updatedAt       DateTime       @updatedAt
   refreshToken    String?
   refreshTokens   RefreshToken[]
   subscriptions   Subscription[]
   usageRecords    UsageRecord[]
   ownedWorkspaces Workspace[]    @relation("WorkspaceOwner")
+  organizationId  String?
+  organization    Organization?  @relation(fields: [organizationId], references: [id])
 }
 
 model Workspace {
@@ -65,6 +67,8 @@ model SocialAccount {
   posts              Post[]
   scheduledPosts     ScheduledPost[]
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  organizationId     String?
+  organization       Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([provider, providerAccountId])
@@ -84,6 +88,8 @@ model Post {
   workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   files           PostFile[]
   scheduledPosts  ScheduledPost[]
+  organizationId  String?
+  organization    Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([socialAccountId])
@@ -182,8 +188,9 @@ model UsageRecord {
 }
 
 enum Role {
-  USER
   ADMIN
+  EDITOR
+  VIEWER
 }
 
 enum SocialProvider {
@@ -222,4 +229,20 @@ enum FileProvider {
   CLOUDINARY
   S3
   OTHER
+}
+
+enum OrgPlan {
+  FREE
+  PRO
+  AGENCY
+}
+
+model Organization {
+  id             String          @id @default(uuid())
+  name           String
+  plan           OrgPlan         @default(FREE)
+  createdAt      DateTime        @default(now())
+  users          User[]
+  socialAccounts SocialAccount[]
+  posts          Post[]
 }
