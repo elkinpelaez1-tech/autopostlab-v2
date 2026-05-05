@@ -65,8 +65,45 @@ const PostEditor: React.FC = () => {
     }
   };
 
+  const [monthlyPostsCount, setMonthlyPostsCount] = useState(0);
+
+  const fetchPosts = async () => {
+    try {
+      const response = await api.get('/posts');
+      const posts = response.data || [];
+      
+      let scheduled = 0;
+      let published = 0;
+      let failed = 0;
+      
+      posts.forEach((p: any) => {
+        p.scheduledPosts?.forEach((sp: any) => {
+          if (sp.status === 'PENDING' || sp.status === 'PROCESSING') scheduled++;
+          else if (sp.status === 'PUBLISHED') published++;
+          else if (sp.status === 'FAILED') failed++;
+        });
+      });
+      
+      setStats({ scheduled, published, failed });
+
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      const thisMonthPosts = posts.filter((p: any) => {
+        const postDate = new Date(p.createdAt);
+        return postDate.getMonth() === currentMonth && postDate.getFullYear() === currentYear;
+      });
+      
+      setMonthlyPostsCount(thisMonthPosts.length);
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAccounts();
+    fetchPosts();
   }, []);
 
   // Cleanup Blob URLs to prevent memory leaks
@@ -101,6 +138,12 @@ const PostEditor: React.FC = () => {
   }, [editPost]);
 
   const displayName = user?.name || 'Usuario';
+  const plan = user?.plan || 'FREE';
+  const planLimit = plan === 'FREE' ? 20 : (plan === 'PRO' ? 200 : null);
+  const isUnlimited = plan === 'AGENCY';
+  
+  const usagePercentage = planLimit ? Math.min((monthlyPostsCount / planLimit) * 100, 100) : 0;
+  const isNearLimit = usagePercentage >= 80;
 
   const getProviderIcon = (provider: string) => {
     const safeProvider = typeof provider === "string" ? provider.toLowerCase() : "";
@@ -222,13 +265,18 @@ const PostEditor: React.FC = () => {
       setScheduledAt('');
       setSelectedFiles([]);
       setShowMoreOptions(false);
+      
+      // Refresh posts data after creating
+      fetchPosts();
     } catch (error: any) {
       console.error('ERROR COMPLETO:', error);
       console.error('ERROR RESPONSE:', error.response);
       console.error('ERROR DATA:', error.response?.data);
       console.error('ERROR MESSAGE:', error.message);
 
-      alert(error.message);
+      // Handle the ForbiddenException effectively to display to user
+      const errMessage = error.response?.data?.message || error.message;
+      alert(errMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -237,8 +285,40 @@ const PostEditor: React.FC = () => {
   return (
     <div className="dashboard-container" onClick={() => setShowMoreOptions(false)}>
       <div className="dashboard-welcome">
-        <h1>¡Hola, {displayName}! 👋</h1>
-        <p>Aquí tienes el resumen de tu contenido real y conectado.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1>¡Hola, {displayName}! 👋</h1>
+            <p>Aquí tienes el resumen de tu contenido real y conectado.</p>
+          </div>
+          
+          <div className="plan-usage-card">
+            <div className="plan-usage-header">
+              <span className="plan-badge">Plan: {plan}</span>
+              {isUnlimited ? (
+                <span className="usage-text">Publicaciones ilimitadas</span>
+              ) : (
+                <span className="usage-text">{monthlyPostsCount} de {planLimit} publicaciones usadas este mes</span>
+              )}
+            </div>
+            
+            {!isUnlimited && (
+              <>
+                <div className="progress-bar-container">
+                  <div 
+                    className={`progress-bar-fill ${isNearLimit ? 'warning' : ''}`} 
+                    style={{ width: `${usagePercentage}%` }}
+                  ></div>
+                </div>
+                {isNearLimit && (
+                  <div className="usage-warning">
+                    <AlertCircle size={12} />
+                    <span>Estás cerca del límite de tu plan</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       <section className="quick-draft-card" onClick={(e) => e.stopPropagation()}>

@@ -295,6 +295,65 @@ body {
   color: #ffffff;
 }
 
+.plan-usage-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  min-width: 300px;
+}
+
+.plan-usage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.plan-badge {
+  background: var(--primary-color);
+  color: #fff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.usage-text {
+  font-size: 0.85rem;
+  color: var(--text-contrast);
+  opacity: 0.8;
+}
+
+.progress-bar-container {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary-color);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar-fill.warning {
+  background: #f59e0b;
+}
+
+.usage-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #f59e0b;
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+}
+
 .dashboard.bi-subtitle {
   color: var(--text-contrast);
   opacity: 0.7;
