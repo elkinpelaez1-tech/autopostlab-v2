@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { LinkedinAuthService } from '../social/linkedin-auth.service';
@@ -23,6 +23,29 @@ export class PostsService {
   async create(workspaceId: string, organizationId: string, dto: CreatePostDto) {
     console.log("DEBUG: Datos recibidos para crear post:", JSON.stringify({ workspaceId, organizationId, dto }, null, 2));
     
+    // PLAN ENFORCEMENT: Verificar límites de publicaciones por mes
+    const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    if (organization && organization.plan !== 'AGENCY') {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      const postsCount = await this.prisma.post.count({
+        where: {
+          organizationId,
+          createdAt: {
+            gte: startOfMonth,
+            lte: endOfMonth
+          }
+        }
+      });
+      
+      const limit = organization.plan === 'FREE' ? 20 : (organization.plan === 'PRO' ? 200 : 0);
+      if (postsCount >= limit) {
+        throw new ForbiddenException('Has alcanzado el límite de publicaciones de tu plan para este mes');
+      }
+    }
+
     // 1. Crear el Post base en la base de datos (siempre se guarda)
     const post = await this.prisma.post.create({
       data: {

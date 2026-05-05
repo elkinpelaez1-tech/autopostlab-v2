@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSocialAccountDto } from './dto/create-social-account.dto';
 import { UpdateSocialAccountDto } from './dto/update-social-account.dto';
@@ -39,6 +39,16 @@ export class SocialAccountsService {
             status: 'ACTIVE',
           },
         });
+      }
+
+      // PLAN ENFORCEMENT: Verificar límites de cuentas sociales
+      const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+      if (organization && organization.plan !== 'AGENCY') {
+        const accountsCount = await this.prisma.socialAccount.count({ where: { organizationId } });
+        const limit = organization.plan === 'FREE' ? 1 : (organization.plan === 'PRO' ? 5 : 0);
+        if (accountsCount >= limit) {
+          throw new ForbiddenException('Has alcanzado el límite de cuentas sociales de tu plan');
+        }
       }
 
       // 2. Si no existe, crear nueva
