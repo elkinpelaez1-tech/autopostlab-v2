@@ -300,28 +300,19 @@ const PostEditor: React.FC = () => {
             
             <div className="draft-actions">
               <div className="social-selector">
-                {accounts.map(acc => (
-                  <div 
-                    key={acc.id}
-                    className={`social-icon-3d ${typeof acc.provider === "string" ? acc.provider.toLowerCase() : ""} ${selectedAccounts.includes(acc.id) ? 'active' : ''}`} 
-                    title={`${acc.provider}: @${acc.username}`}
-                    onClick={() => handleToggleAccount(acc.id)}
-                  >
-                     {getProviderIcon(acc.provider)}
-                  </div>
-                ))}
-
-                {!accounts.some(acc => (typeof acc.provider === "string" ? acc.provider.toUpperCase() : "") === 'TIKTOK') && (
-                  <div 
-                    className="social-icon-3d tiktok" 
-                    title="Conectar TikTok"
-                    onClick={() => {
-                      const baseUrl = api.defaults.baseURL || 'http://localhost:3001/api';
-                      window.location.href = `${baseUrl}/tiktok/auth?workspaceId=${user?.workspaceId}`;
-                    }}
-                  >
-                     <SiTiktok size={20} />
-                  </div>
+                {accounts.length > 0 ? (
+                  accounts.map(acc => (
+                    <div 
+                      key={acc.id}
+                      className={`social-icon-3d ${typeof acc.provider === "string" ? acc.provider.toLowerCase() : ""} ${selectedAccounts.includes(acc.id) ? 'active' : ''}`} 
+                      title={`${acc.provider}: @${acc.username}`}
+                      onClick={() => handleToggleAccount(acc.id)}
+                    >
+                       {getProviderIcon(acc.provider)}
+                    </div>
+                  ))
+                ) : (
+                  <span className="empty-accounts-text">Conecta una cuenta para comenzar</span>
                 )}
               </div>
                
