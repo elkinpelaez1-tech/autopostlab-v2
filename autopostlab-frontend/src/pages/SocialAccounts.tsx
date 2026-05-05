@@ -157,20 +157,25 @@ const SocialAccounts: React.FC = () => {
         </div>
       ) : (
         <div className="social-accounts-grid">
-          {/* Estado vacío si no hay cuentas */}
+          {/* Botón de Añadir (Estilo Glassmorphism) SIEMPRE visible */}
+          <div 
+            className="add-account-card" 
+            onClick={handleConnectInstagram}
+          >
+            <div className="plus-circle-premium">
+              <Plus size={24} />
+            </div>
+            <p className="add-account-text">Añadir perfil social</p>
+          </div>
+
+          {/* Mensaje de estado vacío si no hay cuentas */}
           {accounts.length === 0 && !isLoading && (
-            <div className="empty-state-container col-span-full">
-              <div className="empty-state-icon">
-                <AlertCircle size={48} color="var(--text-muted)" />
-              </div>
-              <h2 className="empty-state-title">No hay cuentas conectadas</h2>
+            <div className="empty-state-simple col-span-full py-8 text-center">
+              <AlertCircle size={40} color="var(--text-muted)" className="mx-auto mb-3 opacity-50" />
               <p className="empty-state-description">
-                Comienza vinculando tu primera cuenta de Instagram o TikTok.
+                Aún no has vinculado ninguna cuenta. <br/>
+                Haz clic en el botón de arriba para comenzar.
               </p>
-              <button className="btn-programar mt-4" onClick={handleConnectInstagram}>
-                <Plus size={18} />
-                Vincular Primera Cuenta
-              </button>
             </div>
           )}
 
