@@ -12,17 +12,17 @@ model User {
   name            String?
   email           String         @unique
   password        String
-  avatarUrl       String?
   createdAt       DateTime       @default(now())
   role            Role           @default(ADMIN)
   updatedAt       DateTime       @updatedAt
   refreshToken    String?
+  avatarUrl       String?
+  organizationId  String?
   refreshTokens   RefreshToken[]
   subscriptions   Subscription[]
   usageRecords    UsageRecord[]
-  ownedWorkspaces Workspace[]    @relation("WorkspaceOwner")
-  organizationId  String?
   organization    Organization?  @relation(fields: [organizationId], references: [id])
+  ownedWorkspaces Workspace[]    @relation("WorkspaceOwner")
 }
 
 model Workspace {
@@ -64,11 +64,11 @@ model SocialAccount {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   workspaceId        String
+  organizationId     String?
   posts              Post[]
   scheduledPosts     ScheduledPost[]
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  organizationId     String?
   organization       Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([provider, providerAccountId])
@@ -84,12 +84,12 @@ model Post {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   workspaceId     String
+  organizationId  String?
+  organization    Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   socialAccount   SocialAccount?  @relation(fields: [socialAccountId], references: [id])
   workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   files           PostFile[]
   scheduledPosts  ScheduledPost[]
-  organizationId  String?
-  organization    Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([socialAccountId])
@@ -187,6 +187,16 @@ model UsageRecord {
   @@index([userId, periodStart, periodEnd])
 }
 
+model Organization {
+  id             String          @id @default(uuid())
+  name           String
+  plan           OrgPlan         @default(FREE)
+  createdAt      DateTime        @default(now())
+  posts          Post[]
+  socialAccounts SocialAccount[]
+  users          User[]
+}
+
 enum Role {
   ADMIN
   EDITOR
@@ -235,14 +245,4 @@ enum OrgPlan {
   FREE
   PRO
   AGENCY
-}
-
-model Organization {
-  id             String          @id @default(uuid())
-  name           String
-  plan           OrgPlan         @default(FREE)
-  createdAt      DateTime        @default(now())
-  users          User[]
-  socialAccounts SocialAccount[]
-  posts          Post[]
 }
