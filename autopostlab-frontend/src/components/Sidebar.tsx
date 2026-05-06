@@ -10,7 +10,8 @@ import {
   PlusSquare,
   Calendar,
   Image as ImageIcon,
-  Video
+  Video,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,6 +26,7 @@ const Sidebar: React.FC = () => {
     { icon: <ImageIcon size={20} />, label: 'Fotos', path: '/dashboard/photos' },
     { icon: <Video size={20} />, label: 'Videos', path: '/dashboard/videos' },
     { icon: <Share2 size={20} />, label: 'Cuentas Sociales', path: '/dashboard/social-accounts' },
+    { icon: <CreditCard size={20} />, label: 'Planes y Suscripción', path: '/dashboard/billing' },
     { icon: <BarChart3 size={20} />, label: 'Estadísticas', path: '/dashboard/analytics' },
   ];
 

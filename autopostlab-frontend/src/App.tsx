@@ -10,6 +10,7 @@ import './App.css';
 import SocialAccounts from './pages/SocialAccounts';
 import Posts from './pages/Posts';
 import Settings from './pages/Settings';
+import Billing from './pages/Billing';
 import PostEditor from './pages/PostEditor';
 import ContentCalendar from './pages/Calendar';
 import MediaLibrary from './pages/media/MediaLibrary';
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="posts" element={<Posts />} />
         <Route path="social-accounts" element={<SocialAccounts />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="billing" element={<Billing />} />
         <Route path="create" element={<PostEditor />} />
         <Route path="calendar" element={<ContentCalendar />} />
         <Route path="photos" element={<MediaLibrary type="image" />} />
