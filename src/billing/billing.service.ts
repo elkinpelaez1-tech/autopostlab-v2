@@ -35,7 +35,7 @@ export class BillingService {
     const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
     
     // El redirect-url puede venir de las variables de entorno o estar hardcodeado para redirigir al dashboard
-    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`;
+    const redirectUrl = `${process.env.FRONTEND_URL || 'https://autopostlab-v2.vercel.app'}/dashboard`;
 
     let signature = '';
     if (integritySecret) {
