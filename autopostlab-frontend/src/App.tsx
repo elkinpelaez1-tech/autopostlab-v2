@@ -14,6 +14,9 @@ import PostEditor from './pages/PostEditor';
 import ContentCalendar from './pages/Calendar';
 import MediaLibrary from './pages/media/MediaLibrary';
 import AIReport from './pages/AIReport';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminMetrics from './pages/admin/AdminMetrics';
+
 // Componente para proteger rutas
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { token, isLoading } = useAuth();
@@ -57,6 +60,19 @@ function AppRoutes() {
         <Route path="videos" element={<MediaLibrary type="video" />} />
         <Route path="ai-report" element={<AIReport />} />
         <Route path="analytics" element={<Navigate to="/dashboard" replace />} />
+      </Route>
+
+      {/* Rutas Internas SaaS (Admin) */}
+      <Route
+        path="/admin"
+        element={
+          <PrivateRoute>
+            <AdminLayout />
+          </PrivateRoute>
+        }
+      >
+        <Route path="metrics" element={<AdminMetrics />} />
+        <Route index element={<Navigate to="/admin/metrics" replace />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" />} />

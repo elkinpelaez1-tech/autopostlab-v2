@@ -1,11 +1,30 @@
-import { Controller, Post, Body, Headers, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Headers, UseGuards, Req, Get } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @Controller('billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('metrics')
+  getMetrics() {
+    return this.billingService.getMetrics();
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('subscriptions')
+  getSubscriptions() {
+    return this.billingService.getSubscriptions();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notifications')
+  getNotifications(@GetUser() user: any) {
+    return this.billingService.getNotifications(user.organizationId);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('create-checkout')
