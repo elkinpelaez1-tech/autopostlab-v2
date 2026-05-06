@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -7,7 +8,10 @@ export class BillingService {
   private readonly logger = new Logger(BillingService.name);
   private readonly PRO_PRICE_CENTS = 7900000; // 79,000 COP
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService
+  ) {}
 
   async createCheckout(organizationId: string, plan: string) {
     if (plan !== 'PRO') {
@@ -71,6 +75,7 @@ export class BillingService {
         parts.forEach(p => val = val[p]);
         dataToSign += val;
       });
+      const timestamp = body.timestamp || '';
       dataToSign += timestamp; // checksum en v1 incluye timestamp en event
       // Referencia de webhook v1 Wompi:
       // A fines prácticos si la firma es requerida, aquí la validamos
@@ -143,8 +148,110 @@ export class BillingService {
       }
     });
 
-    this.logger.log(`✅ Organización ${organizationId} actualizada a PRO exitosamente`);
+    // Limpiar notificaciones existentes tras un upgrade exitoso
+    await this.prisma.billingNotification.deleteMany({
+      where: { organizationId: organizationId }
+    });
+
+    // Enviar correo de éxito a los administradores
+    const admins = await this.prisma.user.findMany({
+      where: { organizationId, role: 'ADMIN' }
+    });
+
+    for (const admin of admins) {
+      await this.mailService.sendPaymentSuccessEmail(admin.email, org.name, newExpiresAt);
+    }
+
+    this.logger.log(`✅ Organización ${organizationId} actualizada a PRO exitosamente, notificaciones limpiadas y correo enviado`);
 
     return { success: true, status: 'UPGRADED', expiresAt: newExpiresAt };
+  }
+
+  async getMetrics() {
+    const totalOrganizations = await this.prisma.organization.count();
+    const totalFreeOrganizations = await this.prisma.organization.count({ where: { plan: 'FREE' } });
+    const totalProOrganizations = await this.prisma.organization.count({ where: { plan: 'PRO' } });
+    const totalAgencyOrganizations = await this.prisma.organization.count({ where: { plan: 'AGENCY' } });
+
+    const PRO_MONTHLY_PRICE = 79000;
+    const monthlyRecurringRevenue = totalProOrganizations * PRO_MONTHLY_PRICE;
+    const annualRunRate = monthlyRecurringRevenue * 12;
+
+    const baseForConversion = totalFreeOrganizations + totalProOrganizations;
+    const conversionRate = baseForConversion > 0 ? (totalProOrganizations / baseForConversion) : 0;
+
+    const now = new Date();
+    const fiveDaysFromNow = new Date();
+    fiveDaysFromNow.setDate(now.getDate() + 5);
+
+    const expiringSoon = await this.prisma.organization.count({
+      where: {
+        plan: 'PRO',
+        planExpiresAt: {
+          lte: fiveDaysFromNow,
+          gte: now,
+        },
+      },
+    });
+
+    const expiredSubscriptions = await this.prisma.organization.count({
+      where: {
+        plan: 'FREE',
+        hadPro: true,
+      },
+    });
+
+    return {
+      totalOrganizations,
+      totalFreeOrganizations,
+      totalProOrganizations,
+      totalAgencyOrganizations,
+      monthlyRecurringRevenue,
+      annualRunRate,
+      conversionRate,
+      expiringSoon,
+      expiredSubscriptions,
+    };
+  }
+
+  async getSubscriptions() {
+    const orgs = await this.prisma.organization.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+    const fiveDaysFromNow = new Date();
+    fiveDaysFromNow.setDate(now.getDate() + 5);
+
+    return orgs.map(org => {
+      let status = 'ACTIVE';
+      if (org.plan === 'FREE' && org.hadPro) {
+        status = 'EXPIRED';
+      } else if (org.plan === 'PRO' && org.planExpiresAt && org.planExpiresAt <= fiveDaysFromNow && org.planExpiresAt >= now) {
+        status = 'EXPIRING_SOON';
+      } else if (org.plan === 'PRO' && org.planExpiresAt && org.planExpiresAt < now) {
+        // Technically it should have been caught by the cron, but just in case
+        status = 'EXPIRED';
+      }
+
+      return {
+        id: org.id,
+        organizationName: org.name,
+        currentPlan: org.plan,
+        expirationDate: org.planExpiresAt,
+        status,
+      };
+    });
+  }
+
+  async getNotifications(organizationId: string) {
+    if (!organizationId) {
+      return [];
+    }
+
+    return this.prisma.billingNotification.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: 'desc' }
+    });
   }
 }
