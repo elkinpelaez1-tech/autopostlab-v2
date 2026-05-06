@@ -1,24 +1,43 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { CreditCard, CheckCircle2, Zap, Building2, AlertCircle } from 'lucide-react';
+import api from '../services/api';
 
 const Billing: React.FC = () => {
   const { user } = useAuth();
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Fallback seguro si user no está listo
   const plan = user?.plan || 'FREE';
   const expiresAt = user?.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString() : null;
   const isExpired = user?.plan === 'FREE' && user?.hadPro;
 
-  // Lógica de upgrade dummy (visual)
-  const handleUpgradeClick = (selectedPlan: string) => {
+  // Lógica de upgrade real para PRO
+  const handleUpgradeClick = async (selectedPlan: string) => {
+    if (selectedPlan !== 'PRO') {
+      alert('Solo se soporta el plan PRO por ahora');
+      return;
+    }
+
     setIsUpgrading(true);
-    console.log(`Iniciando upgrade visual para plan: ${selectedPlan}`);
-    setTimeout(() => {
-      alert(`Flujo de upgrade a ${selectedPlan} simulado. La lógica de Wompi se integrará luego.`);
+    setErrorMsg(null);
+
+    try {
+      const response = await api.post('/billing/create-checkout', { plan: 'PRO' });
+      if (response.data && response.data.checkoutUrl) {
+        // Redirección directa a la pasarela segura de Wompi
+        window.location.href = response.data.checkoutUrl;
+      } else {
+        throw new Error('No se recibió la URL de checkout de Wompi desde el backend');
+      }
+    } catch (error: any) {
+      console.error('Error al generar checkout de Wompi:', error);
+      const message = error.response?.data?.message || error.message || 'Error desconocido';
+      setErrorMsg(`No se pudo iniciar la compra: ${message}`);
+    } finally {
       setIsUpgrading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -198,6 +217,30 @@ const Billing: React.FC = () => {
           <p style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Gestiona tu plan actual, límites y opciones de facturación.</p>
         </div>
       </div>
+
+      {/* Mensaje de Error Amigable si falla el Checkout */}
+      {errorMsg && (
+        <div className="card" style={{ marginBottom: '2.5rem', borderLeft: '4px solid #ef4444', background: 'white', color: '#1f2937' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              padding: '1rem', 
+              borderRadius: '50%',
+              color: '#ef4444'
+            }}>
+              <AlertCircle size={24} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem', color: '#111827' }}>
+                No pudimos procesar tu solicitud
+              </h3>
+              <p style={{ color: '#ef4444', fontWeight: 500 }}>
+                {errorMsg}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Banner de Estado Actual */}
       <div className="card" style={{ marginBottom: '2.5rem', borderLeft: '4px solid var(--accent)', background: 'white', color: '#1f2937' }}>
