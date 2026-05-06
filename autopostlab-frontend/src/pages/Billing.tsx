@@ -92,7 +92,7 @@ const Billing: React.FC = () => {
           <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>$0 <span style={{ fontSize: '1rem', color: '#6b7280', fontWeight: 400 }}>/ mes</span></div>
           
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2rem 0' }}>
-            <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}><CheckCircle2 size={18} color="#10b981" /> 3 Cuentas Sociales Mínimas</li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}><CheckCircle2 size={18} color="#10b981" /> 1 Cuenta Social</li>
             <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}><CheckCircle2 size={18} color="#10b981" /> 10 Publicaciones mensuales</li>
             <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}><CheckCircle2 size={18} color="#10b981" /> Calendario Básico</li>
             <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: '#9ca3af' }}><CheckCircle2 size={18} color="#d1d5db" /> Analytics Avanzado</li>
