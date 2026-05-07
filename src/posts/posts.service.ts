@@ -104,11 +104,13 @@ export class PostsService {
           
           console.log("PLATFORM RESULT:", provider, { success: true, id: providerPostId });
           executionResults[accountId] = { status: 'success', providerId: providerPostId, provider };
-        } catch (error) {
-          console.log("PLATFORM ERROR:", provider, error.message);
-          status = 'FAILED';
-          errorMessage = error.message;
-          executionResults[accountId] = { status: 'error', error: errorMessage, provider };
+        } catch (error: any) {
+          console.error('TIKTOK STATUS:', error?.response?.status);
+          console.error('TIKTOK HEADERS:', error?.response?.headers);
+          console.error('TIKTOK DATA:', JSON.stringify(error?.response?.data, null, 2));
+          console.error('TIKTOK MESSAGE:', error?.message);
+          console.error('TIKTOK STACK:', error?.stack);
+          throw error;
         }
       }
 
@@ -256,10 +258,12 @@ export class PostsService {
         console.log(`[TIKTOK] 🚀 Upload binario completado. Video subido como borrador en el Inbox.`);
 
         return initData.publish_id;
-      } catch (error) {
-        console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data, null, 2));
-        console.log('TIKTOK ERROR STATUS:', error.response?.status);
-        console.log('TIKTOK ERROR HEADERS:', JSON.stringify(error.response?.headers, null, 2));
+      } catch (error: any) {
+        console.error('TIKTOK STATUS:', error?.response?.status);
+        console.error('TIKTOK HEADERS:', error?.response?.headers);
+        console.error('TIKTOK DATA:', JSON.stringify(error?.response?.data, null, 2));
+        console.error('TIKTOK MESSAGE:', error?.message);
+        console.error('TIKTOK STACK:', error?.stack);
         throw error;
       }
     }
