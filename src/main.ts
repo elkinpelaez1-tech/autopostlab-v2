@@ -18,8 +18,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      "http://localhost:3000",
-      "https://autopostlab-v2.vercel.app"
+      "https://autopostlab.me"
     ],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

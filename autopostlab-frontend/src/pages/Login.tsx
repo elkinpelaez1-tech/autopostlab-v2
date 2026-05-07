@@ -15,7 +15,7 @@ const Login: React.FC = () => {
   }, [token, navigate]);
 
   const handleGoogleLogin = () => {
-    window.location.href = "https://autopostlab-v2-2.onrender.com/api/social-auth/google";
+    window.location.href = "https://autopostlab.me/api/social-auth/google";
   };
 
   const handleGoogleSuccess = async (credentialResponse: any) => {

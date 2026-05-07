@@ -37,7 +37,7 @@ export class TikTokController {
 
     if (errorDesc || !code) {
       this.logger.error(`Error en callback de TikTok: ${errorDesc}`);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=tiktok_auth_failed`);
     }
 
@@ -72,11 +72,11 @@ export class TikTokController {
       }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
 
       // 4. Redirigir al Frontend con éxito
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?success=true&provider=tiktok`);
     } catch (error) {
       this.logger.error('Error fatal en callback de TikTok:', error);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=${encodeURIComponent(error.message)}`);
     }
   }

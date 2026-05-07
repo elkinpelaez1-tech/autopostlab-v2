@@ -606,7 +606,7 @@ body {
 .date-picker-mini input {
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--text-contrast);
   outline: none;
   width: 100%;
 }
@@ -1659,7 +1659,7 @@ body {
 .date-picker-input-raw {
   background: transparent;
   border: none;
-  color: var(--text-primary);
+  color: var(--text-contrast);
   outline: none;
   cursor: pointer;
   font-size: 14px;
@@ -3242,4 +3242,146 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 24px;
     margin-top: 32px;
+}
+
+/* --- Provider Selection Modal --- */
+.modal-overlay-premium {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeInModal 0.2s ease-out;
+}
+
+.modal-content-premium {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  width: 500px;
+  max-width: 90%;
+  padding: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  animation: scaleInModal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-header-premium {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.modal-header-premium h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #64748b;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+  padding: 0 4px;
+}
+
+.modal-close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-subtitle-premium {
+  color: #475569;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.provider-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.provider-option-btn {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.provider-option-btn:hover {
+  background: #ffffff;
+  border-color: var(--accent);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+}
+
+.provider-option-btn span {
+  font-weight: 600;
+  font-size: 14px;
+  color: #334155;
+}
+
+.provider-icon-3d {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: transform 0.2s;
+}
+
+.provider-option-btn:hover .provider-icon-3d {
+  transform: scale(1.1);
+}
+
+.provider-icon-3d.facebook {
+  background: #1877F2;
+  box-shadow: 0 4px 10px rgba(24, 119, 242, 0.3);
+}
+
+.provider-icon-3d.instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  box-shadow: 0 4px 10px rgba(220, 39, 67, 0.3);
+}
+
+.provider-icon-3d.linkedin {
+  background: #0A66C2;
+  box-shadow: 0 4px 10px rgba(10, 102, 194, 0.3);
+}
+
+.provider-icon-3d.tiktok {
+  background: #000000;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleInModal {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }

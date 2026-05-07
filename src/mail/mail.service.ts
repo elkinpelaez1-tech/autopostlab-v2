@@ -8,7 +8,7 @@ export class MailService {
   private readonly frontendUrl: string;
 
   constructor() {
-    this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    this.frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
 
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.ethereal.email',

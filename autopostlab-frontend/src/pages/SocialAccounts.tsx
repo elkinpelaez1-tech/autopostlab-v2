@@ -27,6 +27,7 @@ const SocialAccounts: React.FC = () => {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showProviderModal, setShowProviderModal] = useState(false);
 
   const fetchAccounts = async () => {
     try {
@@ -65,23 +66,31 @@ const SocialAccounts: React.FC = () => {
     }
   }, []);
 
-  const handleConnectInstagram = () => {
+  const handleConnect = (provider: string) => {
     if (!user?.workspaceId) {
       alert('Error: No se encontró el Workspace ID. Por favor re-inicia sesión.');
       return;
     }
-    const API_URL = import.meta.env.VITE_API_URL;
-    const authUrl = `${API_URL}/api/social-auth/instagram?workspaceId=${user.workspaceId}`;
-    window.location.href = authUrl;
-  };
-
-  const handleConnectTikTok = () => {
-    if (!user?.workspaceId) {
-      alert('Error: No se encontró el Workspace ID. Por favor re-inicia sesión.');
-      return;
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    let authUrl = '';
+    
+    switch (provider) {
+      case 'tiktok':
+        authUrl = `${API_URL}/api/tiktok/auth?workspaceId=${user.workspaceId}`;
+        break;
+      case 'facebook':
+        authUrl = `${API_URL}/api/social-auth/facebook?workspaceId=${user.workspaceId}`;
+        break;
+      case 'instagram':
+        authUrl = `${API_URL}/api/social-auth/instagram?workspaceId=${user.workspaceId}`;
+        break;
+      case 'linkedin':
+        authUrl = `${API_URL}/api/social-auth/linkedin?workspaceId=${user.workspaceId}`;
+        break;
+      default:
+        return;
     }
-    const API_URL = import.meta.env.VITE_API_URL;
-    const authUrl = `${API_URL}/api/social-auth/tiktok?workspaceId=${user.workspaceId}`;
+    
     window.location.href = authUrl;
   };
 
@@ -138,7 +147,7 @@ const SocialAccounts: React.FC = () => {
           <p className="page-subtitle-premium">Gestiona tus conexiones y vincula nuevas plataformas.</p>
         </div>
         <div className="header-actions-premium">
-          <button className="btn-programar" onClick={handleConnectInstagram}>
+          <button className="btn-programar" onClick={() => setShowProviderModal(true)}>
             <Plus size={18} />
             Vincular Nueva Cuenta
           </button>
@@ -160,7 +169,7 @@ const SocialAccounts: React.FC = () => {
           {/* Botón de Añadir (Estilo Glassmorphism) SIEMPRE visible */}
           <div 
             className="add-account-card" 
-            onClick={handleConnectInstagram}
+            onClick={() => setShowProviderModal(true)}
           >
             <div className="plus-circle-premium">
               <Plus size={24} />
@@ -210,6 +219,51 @@ const SocialAccounts: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showProviderModal && (
+        <div className="modal-overlay-premium" onClick={() => setShowProviderModal(false)}>
+          <div className="modal-content-premium" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-premium">
+              <h2>Selecciona la Plataforma</h2>
+              <button className="modal-close-btn" onClick={() => setShowProviderModal(false)}>×</button>
+            </div>
+            <div className="modal-body-premium">
+              <p className="modal-subtitle-premium">Elige la red social que deseas vincular a tu workspace:</p>
+              <div className="provider-selection-grid">
+                
+                <button className="provider-option-btn" onClick={() => handleConnect('facebook')}>
+                  <div className="provider-icon-3d facebook">
+                    <Facebook size={24} />
+                  </div>
+                  <span>Facebook</span>
+                </button>
+
+                <button className="provider-option-btn" onClick={() => handleConnect('instagram')}>
+                  <div className="provider-icon-3d instagram">
+                    <Instagram size={24} />
+                  </div>
+                  <span>Instagram</span>
+                </button>
+
+                <button className="provider-option-btn" onClick={() => handleConnect('linkedin')}>
+                  <div className="provider-icon-3d linkedin">
+                    <LinkedinIcon size={24} />
+                  </div>
+                  <span>LinkedIn</span>
+                </button>
+
+                <button className="provider-option-btn" onClick={() => handleConnect('tiktok')}>
+                  <div className="provider-icon-3d tiktok">
+                    <SiTiktok size={24} />
+                  </div>
+                  <span>TikTok</span>
+                </button>
+
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
