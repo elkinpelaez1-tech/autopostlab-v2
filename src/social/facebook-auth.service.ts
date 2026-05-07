@@ -17,9 +17,15 @@ export class FacebookAuthService {
   constructor(private configService: ConfigService) { }
 
   getAuthorizationUrl(workspaceId: string) {
-    const appId = this.configService.get('FB_APP_ID');
-    const redirectUri = this.configService.get('FB_REDIRECT_URI');
+    let appId = this.configService.get<string>('FB_APP_ID') || '';
+    let redirectUri = this.configService.get<string>('FB_REDIRECT_URI') || '';
     const state = workspaceId || Date.now();
+
+    // Limpiar comillas innecesarias que puedan venir del .env o de Render
+    const rawAppId = appId;
+    const rawRedirectUri = redirectUri;
+    appId = appId.trim().replace(/^["']|["']$/g, '');
+    redirectUri = redirectUri.trim().replace(/^["']|["']$/g, '');
     
     // 🔑 SCOPES COMPLETOS PARA ASEGURAR VISIBILIDAD DE PÁGINAS E INSTAGRAM
     const scope = [
@@ -34,23 +40,30 @@ export class FacebookAuthService {
       "email"
     ].join(",");
 
-    // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORVAR PERMISOS
+    // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
     const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&auth_type=rerequest`;
 
-    console.log("------------------------------------------");
-    console.log("DEBUG OAUTH FACEBOOK");
-    console.log("FACEBOOK SCOPES:", scope); // 🧪 LOG SOLICITADO
-    console.log("FACEBOOK REDIRECT URI (USED):", redirectUri);
-    console.log("FACEBOOK AUTH URL:", authUrl);
-    console.log("------------------------------------------");
+    console.log("---------------- [FACEBOOK OAUTH DEBUG] ----------------");
+    console.log("FB_APP_ID Crudo (Env):", JSON.stringify(rawAppId));
+    console.log("FB_APP_ID Limpio usado:", JSON.stringify(appId));
+    console.log("FB_APP_ID Longitud:", appId.length);
+    console.log("FB_REDIRECT_URI Crudo (Env):", JSON.stringify(rawRedirectUri));
+    console.log("FB_REDIRECT_URI Limpio usado:", JSON.stringify(redirectUri));
+    console.log("FACEBOOK SCOPES:", scope);
+    console.log("FACEBOOK AUTH URL GENERADA:", authUrl);
+    console.log("--------------------------------------------------------");
 
     return authUrl;
   }
 
   async exchangeCodeForToken(code: string, overrideRedirectUri?: string) {
-    const appId = this.configService.get('FB_APP_ID');
-    const appSecret = this.configService.get('FB_APP_SECRET');
-    const redirectUri = overrideRedirectUri || this.configService.get('FB_REDIRECT_URI');
+    let appId = this.configService.get<string>('FB_APP_ID') || '';
+    let appSecret = this.configService.get<string>('FB_APP_SECRET') || '';
+    let redirectUri = overrideRedirectUri || this.configService.get<string>('FB_REDIRECT_URI') || '';
+
+    appId = appId.trim().replace(/^["']|["']$/g, '');
+    appSecret = appSecret.trim().replace(/^["']|["']$/g, '');
+    redirectUri = redirectUri.trim().replace(/^["']|["']$/g, '');
 
     const url = `https://graph.facebook.com/v22.0/oauth/access_token?client_id=${appId}&redirect_uri=${redirectUri}&client_secret=${appSecret}&code=${code}`;
 
@@ -66,8 +79,11 @@ export class FacebookAuthService {
   }
 
   async getLongLivedToken(shortLivedToken: string) {
-    const appId = this.configService.get('FB_APP_ID');
-    const appSecret = this.configService.get('FB_APP_SECRET');
+    let appId = this.configService.get<string>('FB_APP_ID') || '';
+    let appSecret = this.configService.get<string>('FB_APP_SECRET') || '';
+
+    appId = appId.trim().replace(/^["']|["']$/g, '');
+    appSecret = appSecret.trim().replace(/^["']|["']$/g, '');
 
     const url = `https://graph.facebook.com/v22.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`;
 
