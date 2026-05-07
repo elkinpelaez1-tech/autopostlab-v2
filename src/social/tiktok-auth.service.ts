@@ -165,15 +165,21 @@ export class TikTokAuthService {
    */
   async initializeInboxUpload(accessToken: string, videoSize: number, text: string) {
     const url = 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/';
-    console.log('CALLING INBOX UPLOAD');
-    console.log("TIKTOK INIT WITH CAPTION:", text);
-
+    
     const body = {
       source_info: {
         source: 'FILE_UPLOAD',
-        video_size: videoSize
+        video_size: videoSize,
+        chunk_size: videoSize,
+        total_chunk_count: 1
       }
     };
+
+    console.log('------------------ [TIKTOK PUBLISH DEBUG] ------------------');
+    console.log(`URL de inicialización: ${url}`);
+    console.log('PAYLOAD enviado a TikTok:', JSON.stringify(body, null, 2));
+    console.log('Caption/Texto enviado:', text);
+    console.log('Access Token usado (truncado):', accessToken ? `${accessToken.substring(0, 15)}...` : 'N/A');
 
     try {
       if (!accessToken || accessToken === 'undefined') {
@@ -181,26 +187,34 @@ export class TikTokAuthService {
       }
 
       this.logger.log(`Inicializando upload en TikTok (Inbox). Tamaño: ${videoSize} bytes`);
-      console.log("TOKEN USADO:", accessToken);
 
       const response = await axios.post(url, body, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
         },
       });
+
+      console.log('--- RESPUESTA EXITOSA DE TIKTOK ---');
+      console.log('Status HTTP:', response.status);
+      console.log('Headers de respuesta:', JSON.stringify(response.headers, null, 2));
+      console.log('Body de respuesta:', JSON.stringify(response.data, null, 2));
 
       if (response.data.error && response.data.error.code !== 'ok') {
         this.logger.error('TikTok Init Detailed Error:', JSON.stringify(response.data, null, 2));
         throw new Error(`TikTok Init Error: ${JSON.stringify(response.data.error)}`);
       }
 
-      console.log("TIKTOK INIT RESPONSE:", JSON.stringify(response.data, null, 2));
-      this.logger.log(`✅ Upload inicializado. Publish ID: ${response.data.data.publish_id}`);
+      this.logger.log(`✅ Upload inicializado. Publish ID: ${response.data.data?.publish_id}`);
       return response.data.data; // Contiene publish_id y upload_url
-    } catch (error) {
-      console.log("TIKTOK INIT ERROR FULL:", JSON.stringify(error.response?.data, null, 2));
-      console.log("TIKTOK INIT ERROR RAW:", error);
+    } catch (error: any) {
+      console.error('--- ERROR EN INICIALIZACIÓN TIKTOK ---');
+      console.error('Mensaje de error:', error?.message);
+      console.error('Stack Trace:', error?.stack);
+      console.error('Status HTTP de Error:', error.response?.status);
+      console.error('Respuesta completa de Error (Body):', JSON.stringify(error.response?.data, null, 2));
+      console.error('Headers de Error:', JSON.stringify(error.response?.headers, null, 2));
+      console.error('------------------------------------------------------------');
       throw error;
     }
   }
