@@ -18,7 +18,8 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      "https://autopostlab.me"
+      "https://autopostlab.me",
+      "https://app.autopostlab.me"
     ],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

@@ -271,7 +271,7 @@ export class SocialAuthController {
 
     if (errorDesc || !code) {
       this.logger.error(`Error en callback de TikTok: ${errorDesc}`);
-      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=tiktok_auth_failed`);
     }
 
@@ -295,11 +295,11 @@ export class SocialAuthController {
       }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
 
       // D. Redirigir al Frontend con éxito
-      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?success=true&provider=tiktok`);
     } catch (error) {
       this.logger.error('Error fatal en callback de TikTok:', error);
-      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=${encodeURIComponent(error.message)}`);
     }
   }
@@ -412,14 +412,14 @@ export class SocialAuthController {
       const loginResult = await this.authService.loginWithGoogle(id_token);
 
       // 3. Redirigir al frontend con los tokens de acceso
-      const redirectUrl = `https://autopostlab.me/dashboard?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
+      const redirectUrl = `https://app.autopostlab.me/dashboard?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
 
-      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a https://autopostlab.me...`);
+      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a https://app.autopostlab.me...`);
       return res.redirect(redirectUrl);
 
     } catch (error) {
       this.logger.error('Error crítico en Google Callback:', error.message);
-      const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }
