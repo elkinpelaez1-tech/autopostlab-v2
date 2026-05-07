@@ -418,7 +418,10 @@ export class SocialAuthController {
       return res.redirect(redirectUrl);
 
     } catch (error) {
-      this.logger.error('Error crítico en Google Callback:', error.message);
+      console.error('GOOGLE CALLBACK FULL ERROR:', error);
+      console.error('GOOGLE CALLBACK STACK:', error?.stack);
+      console.error('GOOGLE CALLBACK MESSAGE:', error?.message);
+      console.error('GOOGLE CALLBACK RESPONSE:', JSON.stringify(error, null, 2));
       const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
