@@ -27,15 +27,8 @@ export class FacebookAuthService {
     appId = appId.trim().replace(/^["']|["']$/g, '');
     redirectUri = redirectUri.trim().replace(/^["']|["']$/g, '');
     
-    // 🔑 SCOPES COMPLETOS PARA ASEGURAR VISIBILIDAD DE PÁGINAS E INSTAGRAM
+    // 🔑 SCOPES TEMPORALES LIMITADOS PARA EVITAR PERMISOS AVANZADOS EN DESARROLLO / NUEVA APP
     const scope = [
-      "pages_show_list",
-      "pages_read_engagement",
-      "pages_manage_posts",
-      "pages_manage_metadata",
-      "instagram_basic",
-      "instagram_content_publish",
-      "business_management",
       "public_profile",
       "email"
     ].join(",");
