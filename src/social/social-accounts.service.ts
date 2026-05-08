@@ -45,7 +45,8 @@ export class SocialAccountsService {
       const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
       if (organization && organization.plan !== 'AGENCY') {
         const accountsCount = await this.prisma.socialAccount.count({ where: { organizationId } });
-        const limit = organization.plan === 'FREE' ? 1 : (organization.plan === 'PRO' ? 5 : 0);
+        // 🚀 LÍMITE AUMENTADO TEMPORALMENTE PARA DESARROLLO/TESTING (FREE: 100, PRO: 100)
+        const limit = organization.plan === 'FREE' ? 100 : (organization.plan === 'PRO' ? 100 : 0);
         if (accountsCount >= limit) {
           throw new ForbiddenException('Has alcanzado el límite de cuentas sociales de tu plan');
         }
