@@ -181,9 +181,26 @@ export class SocialAccountsService {
       try {
         this.logger.log(`🔍 [IG DETECTION] Escaneando página FB: ${page.displayName} (${page.providerAccountId})`);
         
-        const url = `https://graph.facebook.com/v22.0/${page.providerAccountId}?fields=instagram_business_account{id,username,name,profile_picture_url}&access_token=${page.accessToken}`;
+        const url = `https://graph.facebook.com/v22.0/${page.providerAccountId}?fields=id,name,instagram_business_account{id,username,name,profile_picture_url}&access_token=${page.accessToken}`;
         const response = await fetch(url);
         const data = await response.json();
+
+        console.log('---------------- [IG DETECTION RAW DEBUG START] ----------------');
+        console.log(`🔍 [IG DETECTION RAW] PÁGINA: ${page.displayName} (${page.providerAccountId})`);
+        console.log(`📄 [IG DETECTION RAW] RESPUESTA EXACTA DE META:`, JSON.stringify(data, null, 2));
+        console.log('---------------- [IG DETECTION RAW DEBUG END] ----------------');
+
+        // Consultar /me/accounts para depuración completa de la cuenta conectada
+        try {
+          const accountsUrl = `https://graph.facebook.com/v22.0/me/accounts?fields=id,name,instagram_business_account{id,username,name}&access_token=${page.accessToken}`;
+          const accountsRes = await fetch(accountsUrl);
+          const accountsData = await accountsRes.json();
+          console.log('---------------- [IG DETECTION ME/ACCOUNTS DEBUG START] ----------------');
+          console.log(`🔍 [IG DETECTION ME/ACCOUNTS] RESPUESTA CON TOKEN DE PÁGINA:`, JSON.stringify(accountsData, null, 2));
+          console.log('---------------- [IG DETECTION ME/ACCOUNTS DEBUG END] ----------------');
+        } catch (err) {
+          console.error(`❌ [IG DETECTION] Error consultando /me/accounts con token de página:`, err);
+        }
 
         if (data.error) {
           this.logger.error(`❌ [IG DETECTION] Error de Graph API en página ${page.displayName}:`, JSON.stringify(data.error, null, 2));
