@@ -29,12 +29,14 @@ export class FacebookAuthService {
     
     // 🔑 SCOPES TEMPORALES LIMITADOS PARA EVITAR PERMISOS AVANZADOS EN DESARROLLO / NUEVA APP
     const scope = [
-      "public_profile",
-      "pages_manage_posts",
-      "pages_read_engagement",
-      "instagram_basic",
-      "instagram_content_publish",
-      "business_management"
+      'public_profile',
+      'pages_manage_posts',
+      'pages_read_engagement',
+      'pages_show_list',
+      'pages_manage_metadata',
+      'business_management',
+      'instagram_business_basic',
+      'instagram_business_content_publish'
     ].join(",");
 
     // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
