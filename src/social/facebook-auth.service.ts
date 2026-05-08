@@ -30,9 +30,7 @@ export class FacebookAuthService {
     // 🔑 SCOPES TEMPORALES LIMITADOS PARA EVITAR PERMISOS AVANZADOS EN DESARROLLO / NUEVA APP
     const scope = [
       "public_profile",
-      "email",
-      "pages_show_list",
-      "pages_read_engagement"
+      "email"
     ].join(",");
 
     // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
@@ -88,25 +86,45 @@ export class FacebookAuthService {
     return data.access_token;
   }
   async getFacebookAndInstagramAccounts(userToken: string) {
-    // 1. Obtener páginas de Facebook del usuario (incluyendo campos anidados para Instagram)
+    console.log('---------------- [FACEBOOK GRAPH API DEBUG START] ----------------');
+    console.log('🔑 TOKEN RECIBIDO EN GET_ACCOUNTS:', userToken);
+
+    // A. Consultar /me para ver el perfil del usuario autenticado
+    const meUrl = `https://graph.facebook.com/v22.0/me?fields=id,name,email&access_token=${userToken}`;
+    console.log('🔍 [FB DEBUG] CONSULTANDO /me...');
+    try {
+      const meRes = await fetch(meUrl);
+      const meData = await meRes.json();
+      console.log('👤 [FB DEBUG] RESPUESTA EXACTA /me:', JSON.stringify(meData, null, 2));
+      if (meData.error) {
+        console.error('❌ [FB DEBUG] ERROR EN /me:', JSON.stringify(meData.error, null, 2));
+      }
+    } catch (e) {
+      console.error('❌ [FB DEBUG] ERROR FATAL FETCHING /me:', e);
+    }
+
+    // B. Consultar /me/accounts para obtener páginas e Instagram
     this.logger.log(`Consultando /me/accounts para FB + IG con token: ${userToken.substring(0, 10)}...`);
-    // Campos anidados: obtenemos el IG Business Account con sus detalles (id, username, name, profile_picture_url)
     const fields = 'id,name,access_token,picture{url},instagram_business_account{id,username,name,profile_picture_url}';
     const pagesUrl = `https://graph.facebook.com/v22.0/me/accounts?fields=${fields}&access_token=${userToken}`;
     
-    console.log('🚀 [IG DEBUG] LLAMANDO A GRAPH API PARA CUENTAS...');
+    console.log('🚀 [FB DEBUG] CONSULTANDO /me/accounts...');
+    let response;
+    let data: any;
+    try {
+      response = await fetch(pagesUrl);
+      data = await response.json();
+      console.log('📄 [FB DEBUG] RESPUESTA EXACTA /me/accounts:', JSON.stringify(data, null, 2));
+    } catch (e) {
+      console.error('❌ [FB DEBUG] ERROR FATAL FETCHING /me/accounts:', e);
+    }
 
-    const response = await fetch(pagesUrl);
-    const data: any = await response.json();
-
-    console.log('TOKEN USADO:', userToken);
-    console.log('FACEBOOK PAGES FULL:', JSON.stringify(data, null, 2));
-
-    if (data.error) {
+    if (data && data.error) {
+      console.error('❌ [FB DEBUG] ERROR COMPLETO DE GRAPH API EN /me/accounts:', JSON.stringify(data.error, null, 2));
       this.logger.error('Error de Graph API:', data.error);
       throw new Error(data.error.message);
     }
-    this.logger.log('-----------------------------');
+    console.log('---------------- [FACEBOOK GRAPH API DEBUG END] ----------------');
 
     const accounts: any[] = [];
     if (data.data) {
