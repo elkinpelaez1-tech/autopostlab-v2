@@ -158,4 +158,64 @@ export class SocialAccountsService {
       where: { workspaceId, organizationId, provider },
     });
   }
+
+  // ----------------------------------------------------------
+  // 📌 Detectar y vincular cuentas de Instagram Business usando Páginas de Facebook conectadas
+  // ----------------------------------------------------------
+  async detectAndLinkInstagramAccounts(workspaceId: string, organizationId: string) {
+    this.logger.log(`🔍 [IG DETECTION] Buscando cuentas Instagram vinculadas para el workspace: ${workspaceId}`);
+    
+    // 1. Obtener todas las páginas de Facebook conectadas en este workspace
+    const facebookPages = await this.prisma.socialAccount.findMany({
+      where: {
+        workspaceId,
+        organizationId,
+        provider: 'FACEBOOK',
+        status: 'ACTIVE',
+      },
+    });
+
+    const linkedInstagramAccounts: any[] = [];
+
+    for (const page of facebookPages) {
+      try {
+        this.logger.log(`🔍 [IG DETECTION] Escaneando página FB: ${page.displayName} (${page.providerAccountId})`);
+        
+        const url = `https://graph.facebook.com/v22.0/${page.providerAccountId}?fields=instagram_business_account{id,username,name,profile_picture_url}&access_token=${page.accessToken}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+          this.logger.error(`❌ [IG DETECTION] Error de Graph API en página ${page.displayName}:`, JSON.stringify(data.error, null, 2));
+          continue;
+        }
+
+        if (data.instagram_business_account) {
+          const ig = data.instagram_business_account;
+          this.logger.log(`📸 [IG DETECTION] ¡Instagram Business detectado!: ${ig.username || ig.id}`);
+
+          // Realizar upsert en la base de datos para la cuenta de Instagram
+          const savedIg = await this.create({
+            provider: 'INSTAGRAM',
+            providerAccountId: ig.id,
+            username: ig.username || `ig_${ig.id}`,
+            displayName: ig.name || ig.username || `${page.displayName} (Instagram)`,
+            avatarUrl: ig.profile_picture_url || null,
+            accessToken: page.accessToken, // Reutiliza el token de acceso de la página de Facebook
+          }, workspaceId, organizationId);
+
+          linkedInstagramAccounts.push(savedIg);
+        } else {
+          this.logger.log(`⚠️ [IG DETECTION] La página FB ${page.displayName} no tiene cuenta de Instagram vinculada.`);
+        }
+      } catch (error) {
+        this.logger.error(`❌ [IG DETECTION] Error procesando página FB ${page.displayName}:`, error);
+      }
+    }
+
+    return {
+      message: `Búsqueda completada. Se vincularon ${linkedInstagramAccounts.length} cuentas de Instagram.`,
+      accounts: linkedInstagramAccounts,
+    };
+  }
 }

@@ -61,4 +61,12 @@ export class SocialAccountsController {
     const organizationId = req.organizationId;
     return this.socialAccountsService.remove(id, workspaceId, organizationId);
   }
+
+  // Detectar y vincular cuentas de Instagram Business de las páginas conectadas
+  @Post('detect-instagram')
+  detectInstagram(@Req() req: any) {
+    const workspaceId = req.user.workspaceId;
+    const organizationId = req.organizationId;
+    return this.socialAccountsService.detectAndLinkInstagramAccounts(workspaceId, organizationId);
+  }
 }
