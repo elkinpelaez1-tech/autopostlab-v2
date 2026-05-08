@@ -66,9 +66,11 @@ export class SocialAuthController {
     console.log('CODE:', code);
     console.log('STATE:', workspaceId);
 
+    const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
+
     if (!code) {
       console.log('❌ NO CODE RECEIVED:', query);
-      return res.status(400).json({ error: 'No code received', query });
+      return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=no_code_received`);
     }
 
     try {
@@ -92,8 +94,7 @@ export class SocialAuthController {
 
       if (allAccounts.length === 0) {
         console.log('ANTES DE REDIRECT DE NO ACCOUNTS');
-        // return res.redirect(`https://autopostlab-v2.vercel.app/?error=no_accounts_found`);
-        return res.json({ error: 'no_accounts_found', query, code, state: workspaceId });
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=no_accounts_found`);
       }
 
       // D. Guardar todas las cuentas encontradas (Upsert interno)
@@ -113,13 +114,11 @@ export class SocialAuthController {
 
       // E. Redirigir de vuelta al Frontend
       console.log('ANTES DEL REDIRECT FINAL');
-      // return res.redirect(`https://autopostlab-v2.vercel.app/success_connection=true`);
-      return res.json({ success: true, query, code, state: workspaceId });
+      return res.redirect(`${frontendUrl}/dashboard/social-accounts?success_connection=true`);
     } catch (error) {
       console.error('❌ ERROR FATAL EN CALLBACK FACEBOOK:', error);
       this.logger.error('Error en callback de Facebook:', error);
-      // return res.redirect(`https://autopostlab-v2.vercel.app/?error=${encodeURIComponent(error.message)}`);
-      return res.status(500).json({ error: error.message });
+      return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=${encodeURIComponent(error.message)}`);
     }
   }
 
