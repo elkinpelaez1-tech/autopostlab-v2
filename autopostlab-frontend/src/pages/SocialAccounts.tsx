@@ -66,23 +66,40 @@ const SocialAccounts: React.FC = () => {
     }
   }, []);
 
-  const handleConnect = (provider: string) => {
+  const handleConnect = async (provider: string) => {
     if (!user?.workspaceId) {
       alert('Error: No se encontró el Workspace ID. Por favor re-inicia sesión.');
       return;
     }
     const API_URL = import.meta.env.VITE_API_URL || '';
-    let authUrl = '';
     
+    if (provider === 'instagram') {
+      try {
+        setIsLoading(true);
+        setShowProviderModal(false);
+        const response = await api.post('/social-accounts/detect-instagram', {}, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        await fetchAccounts();
+        alert(response.data.message || 'Sincronización de Instagram completada con éxito.');
+      } catch (err: any) {
+        console.error('Error detectando Instagram:', err);
+        alert(err.response?.data?.message || 'No se pudieron escanear las páginas conectadas de Facebook en busca de cuentas de Instagram Business.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    let authUrl = '';
     switch (provider) {
       case 'tiktok':
         authUrl = `${API_URL}/api/tiktok/auth?workspaceId=${user.workspaceId}`;
         break;
       case 'facebook':
         authUrl = `${API_URL}/api/social-auth/facebook?workspaceId=${user.workspaceId}`;
-        break;
-      case 'instagram':
-        authUrl = `${API_URL}/api/social-auth/instagram?workspaceId=${user.workspaceId}`;
         break;
       case 'linkedin':
         authUrl = `${API_URL}/api/social-auth/linkedin?workspaceId=${user.workspaceId}`;
