@@ -29,9 +29,7 @@ export class FacebookAuthService {
     
     // 🔑 SCOPES TEMPORALES LIMITADOS PARA EVITAR PERMISOS AVANZADOS EN DESARROLLO / NUEVA APP
     const scope = [
-      "public_profile",
-      "email",
-      "pages_show_list"
+      "public_profile"
     ].join(",");
 
     // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
