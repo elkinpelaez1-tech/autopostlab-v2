@@ -181,25 +181,37 @@ export class SocialAccountsService {
       try {
         this.logger.log(`🔍 [IG DETECTION] Escaneando página FB: ${page.displayName} (${page.providerAccountId})`);
         
-        const url = `https://graph.facebook.com/v22.0/${page.providerAccountId}?fields=id,name,instagram_business_account{id,username,name,profile_picture_url}&access_token=${page.accessToken}`;
+        // 2. Consultar directamente /{page-id}?fields=id,name,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url} con su Page Access Token en v19.0
+        const fields = 'id,name,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url}';
+        const url = `https://graph.facebook.com/v19.0/${page.providerAccountId}?fields=${fields}&access_token=${page.accessToken}`;
         const response = await fetch(url);
         const data = await response.json();
 
-        console.log('---------------- [IG DETECTION RAW DEBUG START] ----------------');
-        console.log(`🔍 [IG DETECTION RAW] PÁGINA: ${page.displayName} (${page.providerAccountId})`);
-        console.log(`📄 [IG DETECTION RAW] RESPUESTA EXACTA DE META:`, JSON.stringify(data, null, 2));
-        console.log('---------------- [IG DETECTION RAW DEBUG END] ----------------');
+        console.log('\n🔴🔴🔴 [DEBUG CONTROLADO - START] 🔴🔴🔴');
+        console.log(`📌 PAGE ID: ${page.providerAccountId}`);
+        console.log(`📌 PAGE NAME: ${page.displayName}`);
+        console.log(`📡 VERSION API: v19.0`);
+        console.log(`🏷️ TOKEN TYPE: Page Access Token`);
+        console.log(`📋 FIELDS SOLICITADOS: ${fields}`);
+        console.log(`🔗 URL FINAL ENVIADA: https://graph.facebook.com/v19.0/${page.providerAccountId}?fields=${fields}&access_token=${page.accessToken ? page.accessToken.substring(0, 15) : 'NULO'}...`);
+        console.log(`🔑 TOKEN COMPLETO DE PÁGINA (primeros 25 car.): ${page.accessToken ? page.accessToken.substring(0, 25) : 'NULO'}...`);
+        console.log(`📄 RESPUESTA COMPLETA DE META:`, JSON.stringify(data, null, 2));
+        console.log('🔴🔴🔴 [DEBUG CONTROLADO - END] 🔴🔴🔴\n');
 
-        // Consultar /me/accounts para depuración completa de la cuenta conectada
+        // Guardar respuesta en archivo scratch para inspección del agente interno
         try {
-          const accountsUrl = `https://graph.facebook.com/v22.0/me/accounts?fields=id,name,instagram_business_account{id,username,name}&access_token=${page.accessToken}`;
-          const accountsRes = await fetch(accountsUrl);
-          const accountsData = await accountsRes.json();
-          console.log('---------------- [IG DETECTION ME/ACCOUNTS DEBUG START] ----------------');
-          console.log(`🔍 [IG DETECTION ME/ACCOUNTS] RESPUESTA CON TOKEN DE PÁGINA:`, JSON.stringify(accountsData, null, 2));
-          console.log('---------------- [IG DETECTION ME/ACCOUNTS DEBUG END] ----------------');
-        } catch (err) {
-          console.error(`❌ [IG DETECTION] Error consultando /me/accounts con token de página:`, err);
+          const fs = require('fs');
+          const path = require('path');
+          const scratchDir = path.join(process.cwd(), 'scratch');
+          if (!fs.existsSync(scratchDir)) {
+            fs.mkdirSync(scratchDir, { recursive: true });
+          }
+          fs.writeFileSync(
+            path.join(scratchDir, 'latest_ig_response.json'),
+            JSON.stringify({ page: page.displayName, pageId: page.providerAccountId, fields, tokenType: 'Page Access Token', response: data }, null, 2)
+          );
+        } catch (e) {
+          console.error('❌ Error guardando archivo de depuración scratch:', e);
         }
 
         if (data.error) {
@@ -207,23 +219,27 @@ export class SocialAccountsService {
           continue;
         }
 
-        if (data.instagram_business_account) {
-          const ig = data.instagram_business_account;
-          this.logger.log(`📸 [IG DETECTION] ¡Instagram Business detectado!: ${ig.username || ig.id}`);
+        // 3. Si existe instagram_business_account o connected_instagram_account, vincularla
+        const ig = data.instagram_business_account || data.connected_instagram_account;
+        if (ig) {
+          const type = data.instagram_business_account ? 'instagram_business_account' : 'connected_instagram_account';
+          this.logger.log(`📸 [IG DETECTION] ¡Instagram detectado mediante ${type}!: ${ig.username || ig.id}`);
 
-          // Realizar upsert en la base de datos para la cuenta de Instagram
+          // 4. Realizar upsert en la base de datos para la cuenta de Instagram
+          console.log('🟢 [IG DETECTION] Intentando guardar IG:', JSON.stringify({ id: ig.id, username: ig.username, workspaceId, organizationId }));
           const savedIg = await this.create({
             provider: 'INSTAGRAM',
             providerAccountId: ig.id,
             username: ig.username || `ig_${ig.id}`,
             displayName: ig.name || ig.username || `${page.displayName} (Instagram)`,
             avatarUrl: ig.profile_picture_url || null,
-            accessToken: page.accessToken, // Reutiliza el token de acceso de la página de Facebook
+            accessToken: page.accessToken, // 🔥 Reutiliza el token de acceso de la página de Facebook
           }, workspaceId, organizationId);
+          console.log('🟢 [IG DETECTION] Guardado exitoso:', JSON.stringify(savedIg));
 
           linkedInstagramAccounts.push(savedIg);
         } else {
-          this.logger.log(`⚠️ [IG DETECTION] La página FB ${page.displayName} no tiene cuenta de Instagram vinculada.`);
+          this.logger.log(`⚠️ [IG DETECTION] La página FB ${page.displayName} no tiene cuenta de Instagram vinculada (probados instagram_business_account y connected_instagram_account).`);
         }
       } catch (error) {
         this.logger.error(`❌ [IG DETECTION] Error procesando página FB ${page.displayName}:`, error);
