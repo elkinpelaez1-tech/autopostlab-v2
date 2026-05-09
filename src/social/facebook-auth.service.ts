@@ -34,8 +34,7 @@ export class FacebookAuthService {
       'pages_manage_posts',
       'pages_read_engagement',
       'pages_manage_metadata',
-      'business_management',
-      'instagram_basic'
+      'business_management'
     ].join(",");
 
     // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
