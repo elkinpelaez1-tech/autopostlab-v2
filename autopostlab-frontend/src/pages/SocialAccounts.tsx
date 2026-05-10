@@ -72,6 +72,7 @@ const SocialAccounts: React.FC = () => {
       return;
     }
     const API_URL = import.meta.env.VITE_API_URL || '';
+    const normalizedApiUrl = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
     
     if (provider === 'instagram') {
       try {
@@ -96,13 +97,13 @@ const SocialAccounts: React.FC = () => {
     let authUrl = '';
     switch (provider) {
       case 'tiktok':
-        authUrl = `${API_URL}/api/tiktok/auth?workspaceId=${user.workspaceId}`;
+        authUrl = `${normalizedApiUrl}/tiktok/auth?workspaceId=${user.workspaceId}`;
         break;
       case 'facebook':
-        authUrl = `${API_URL}/api/social-auth/facebook?workspaceId=${user.workspaceId}`;
+        authUrl = `${normalizedApiUrl}/social-auth/facebook?workspaceId=${user.workspaceId}`;
         break;
       case 'linkedin':
-        authUrl = `${API_URL}/api/social-auth/linkedin?workspaceId=${user.workspaceId}`;
+        authUrl = `${normalizedApiUrl}/social-auth/linkedin?workspaceId=${user.workspaceId}`;
         break;
       default:
         return;
