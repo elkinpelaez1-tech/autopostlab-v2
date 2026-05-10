@@ -37,6 +37,7 @@ const SocialAccounts: React.FC = () => {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
+      console.log('🔍 [DEBUG FRONTEND] Cuentas recibidas del Backend:', response.data);
       setAccounts(response.data);
       setError(null);
     } catch (err: any) {
@@ -204,6 +205,25 @@ const SocialAccounts: React.FC = () => {
               </p>
             </div>
           )}
+
+          {/* MOCK TEST PARA INSTAGRAM HARDCODED - PARA VERIFICAR RENDER */}
+          <div className="social-account-card-premium" style={{ border: '2px dashed #E1306C', opacity: 0.9 }}>
+            <div className="account-card-header">
+              <div className="social-icon-3d instagram">
+                <Instagram size={24} />
+              </div>
+              <div className="account-info-main">
+                <h3 className="account-display-name">TEST HARDCODED</h3>
+                <p className="account-username-text">@test_instagram_render</p>
+              </div>
+            </div>
+            <div className="account-card-footer">
+              <span className="account-status-badge">
+                <div className="pulse-dot" style={{ backgroundColor: '#E1306C' }}></div>
+                DEBUG CARD
+              </span>
+            </div>
+          </div>
 
           {/* Lista de cuentas reales */}
           {accounts.map((account) => (
