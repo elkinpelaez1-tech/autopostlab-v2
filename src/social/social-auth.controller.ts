@@ -174,13 +174,9 @@ export class SocialAuthController {
         accessToken: accessToken,
       }, workspaceId as string, (await this.prisma.workspace.findUnique({ where: { id: workspaceId as string }, include: { owner: true } }))?.owner?.organizationId || '');
 
-      // 4. Respuesta JSON (Temporalmente para evitar ERR_CONNECTION_REFUSED)
-      return res.json({
-        success: true,
-        message: 'LinkedIn conectado correctamente',
-        provider: 'linkedin',
-        workspaceId
-      });
+      // 4. Redirigir al Frontend con éxito
+      const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
+      return res.redirect(`${frontendUrl}/dashboard/social-accounts?success=true&provider=linkedin`);
     } catch (error) {
       this.logger.error('Error en callback de LinkedIn:', error);
 
