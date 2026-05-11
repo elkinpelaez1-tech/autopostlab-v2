@@ -30,12 +30,13 @@ export class BillingController {
   @Post('create-checkout')
   createCheckout(
     @GetUser() user: any,
-    @Body('organizationId') organizationId: string,
     @Body('plan') plan: string,
   ) {
-    // Validar que el usuario pertenezca a la organización (opcional, para mayor seguridad)
-    // Asumimos que el frontend envía su propia org ID
-    return this.billingService.createCheckout(organizationId || user.organizationId, plan);
+    // 🔒 BLINDAJE SEGURIDAD: Forzamos que el pago SIEMPRE se asocie a la organización real del token.
+    // Ignoramos cualquier parameter de organizationId que pudiera venir en el Body para prevenir spoofing.
+    const organizationId = user.organizationId; 
+    
+    return this.billingService.createCheckout(organizationId, plan);
   }
 
   // Webhook es público, Wompi lo consume

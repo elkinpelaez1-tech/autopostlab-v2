@@ -61,7 +61,7 @@ export class UsersService {
   // -------------------------------------------------------
   // ✏️ Actualizar usuario (con re-hash si cambia contraseña)
   // -------------------------------------------------------
-  async update(id: string, data: UpdateUserDto) {
+  async update(id: string, data: UpdateUserDto, isAdmin: boolean = false) {
     const exists = await this.findOne(id);
 
     let password = exists.password;
@@ -72,10 +72,21 @@ export class UsersService {
     }
 
     // --- PROTECCIÓN DE DATOS SENSIBLES ---
-    // Si avatarUrl viene vacío o null en un update general, mantenemos la anterior
-    const cleanData: any = { ...data };
-    if (!cleanData.avatarUrl && exists.avatarUrl) {
-       delete cleanData.avatarUrl;
+    // Whitelist quirúrgico de campos actualizables por usuarios normales
+    const cleanData: any = {};
+    
+    if (data.name !== undefined) cleanData.name = data.name;
+    
+    // Solo actualizar avatar si trae valor (lógica previa conservada de forma más limpia)
+    if (data.avatarUrl) {
+      cleanData.avatarUrl = data.avatarUrl;
+    }
+
+    // Si es un administrador, se le permite modificar campos estructurales
+    if (isAdmin) {
+      if (data.email) cleanData.email = data.email;
+      if (data.role) cleanData.role = data.role;
+      if (data.organizationId) cleanData.organizationId = data.organizationId;
     }
 
     return this.prisma.user.update({

@@ -350,6 +350,7 @@ export class PostsService {
         sp.socialAccount.provider,
         sp.socialAccount,
         sp.post.content,
+        organizationId, // 👈 ARREGLO CRÍTICO: Inyectar organizationId antes del imageUrl para coincidir con la firma
         imageUrl
       );
 
