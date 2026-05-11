@@ -66,6 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 headers: { Authorization: `Bearer ${currentToken}` }
               });
               const userData = res.data;
+              console.log('DEBUG AUTH - Payload DB /users/me:', userData);
+              console.log('DEBUG AUTH - Decoded Token Payload:', decoded);
+              
               setUser({
                 id: userData.id,
                 email: userData.email,

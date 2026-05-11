@@ -1,0 +1,66 @@
+﻿­ƒöì [DB AUDIT] Querying SocialAccount table for provider = INSTAGRAM...
+­ƒôè Total accounts in DB: 2
+FULL ACCOUNTS DUMP:
+[
+  {
+    "id": "cmovwb2sn00014w3u6m2nabqx",
+    "provider": "TIKTOK",
+    "providerAccountId": "-000GgRLM1DvHtW3v-YexXTnFcCMuoFUZlms",
+    "displayName": "Cuenta TikTok",
+    "username": "TikTok_-000GgRL",
+    "avatarUrl": null,
+    "accessToken": "act.EKAGlSnugtn6qPC8UdWqwkzU2wOM4vF3Vy0tTCdI3UR0YKuHOJZs9HrDkdW1!4617.s1",
+    "refreshToken": "rft.DLOPudqyCoTKopw95fIqTducxW6pw2wpU7VG92eiU3YEY48uF2dTv4yCi2tB!4568.s1",
+    "accessTokenExpires": "2026-05-08T19:45:01.899Z",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-07T19:45:02.183Z",
+    "updatedAt": "2026-05-07T19:45:02.183Z",
+    "workspaceId": "cmovv834i00013o733pttr57u",
+    "organizationId": "f8e9e5d6-fcfa-4b95-98df-8f4096b11eae"
+  },
+  {
+    "id": "cmoykvh6p000hex5ypjmcdvkt",
+    "provider": "FACEBOOK",
+    "providerAccountId": "726470994048023",
+    "displayName": "Central de Reservas y Turismo",
+    "username": "Central de Reservas y Turismo",
+    "avatarUrl": "https://scontent-den2-1.xx.fbcdn.net/v/t39.30808-1/471543834_1115581763905010_8338685636649895631_n.jpg?stp=cp0_dst-jpg_s50x50_tt6&_nc_cat=108&ccb=1-7&_nc_sid=f907e8&_nc_eui2=AeHnPN8dYKeDSHrPVdqXdD6xkEmiZDRHWq2QSaJkNEdarcMyqkmOmBkpcs_J0viLI0A4owHm0kN8MAdCo8gOWh7w&_nc_ohc=4eInslLjhZ8Q7kNvwESrWo1&_nc_oc=Adr1MNY_QiKR3QoMNzdDo-3PE2YM3h43tPB3AgQiRup_hPEcZBkPobTIlieDetL6K-k&_nc_zt=24&_nc_ht=scontent-den2-1.xx&edm=AGaHXAAEAAAA&_nc_gid=2Ss_V9j3kbsQkgV1fXLgzA&_nc_tpa=Q5bMBQHD0ASbBoL_40x7foSwAglvjFxRNB6qKR8EmnazOCFRm_vTzamxD6xUOflsqxywxvA7HQSPgHMSfw&oh=00_Af7Wtex0FeIoKDbq6YVqZ4VTc6TYMwloMveh1wTP4k-LMw&oe=6A0542A8",
+    "accessToken": "EAAoYPISjxUMBRVFZBT8wOOozJhHM7KjBwGvGx8tmK2JZBKqyZBA9Jby9CL9kRf0VMI6NctaxZCOicpD35IcblZB9F6tAvN9Mxe4bAO0v38tza9qooWmtOFCwIVdQWiaZC8Hj2C1tw7QZCOHL0LipvC5fs92bSoMGFBnLe6fZB1aSJmSLLbLWpxTatfKKIbwgqPZBRMbnR7U3Ut9aPto7ZAFzxcn3ab",
+    "refreshToken": null,
+    "accessTokenExpires": null,
+    "status": "ACTIVE",
+    "createdAt": "2026-05-09T16:48:17.090Z",
+    "updatedAt": "2026-05-09T16:48:17.090Z",
+    "workspaceId": "cmovv834i00013o733pttr57u",
+    "organizationId": "f8e9e5d6-fcfa-4b95-98df-8f4096b11eae"
+  }
+]
+
+­ƒæÑ USERS IN DB:
+[
+  {
+    "id": "cmovv834i00003o73q489heyq",
+    "email": "comercial@centraldereservasyturismo.com",
+    "organizationId": "f8e9e5d6-fcfa-4b95-98df-8f4096b11eae",
+    "ownedWorkspaces": [
+      {
+        "id": "cmovv834i00013o733pttr57u",
+        "name": "Workspace de Asesor comercial"
+      }
+    ]
+  },
+  {
+    "id": "cmovvvudh00023o73uteys4kl",
+    "email": "elkinpelaez1@gmail.com",
+    "organizationId": "12d2aa49-f5dd-41ef-ba59-924bbfd161b8",
+    "ownedWorkspaces": [
+      {
+        "id": "cmovvvudh00033o739mcdzgy8",
+        "name": "Workspace de Elkin Pelaez"
+      }
+    ]
+  }
+]
+
+­ƒº¬ EXECUTING CANARY TEST: Updating Facebook username to check DB linking...
+ÔØî Could not find the target Facebook account for Canary update.

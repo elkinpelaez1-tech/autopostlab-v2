@@ -1,0 +1,42 @@
+[
+  {
+    "id": "3fb413d4-17e9-475b-9e8f-7b67e3c87500",
+    "name": "Org A",
+    "plan": "FREE",
+    "planExpiresAt": null,
+    "hadPro": false,
+    "createdAt": "2026-05-05T13:09:50.136Z"
+  },
+  {
+    "id": "84ec5576-c0a6-4a08-a949-281a51851791",
+    "name": "Org B",
+    "plan": "FREE",
+    "planExpiresAt": null,
+    "hadPro": false,
+    "createdAt": "2026-05-05T13:09:52.136Z"
+  },
+  {
+    "id": "cff5d32a-2759-498d-96a7-0ddc0671224b",
+    "name": "Mi empresa",
+    "plan": "FREE",
+    "planExpiresAt": null,
+    "hadPro": false,
+    "createdAt": "2026-05-05T13:33:39.870Z"
+  },
+  {
+    "id": "db534136-1b52-41ad-bba3-fdbcd013f62a",
+    "name": "Mi empresa",
+    "plan": "FREE",
+    "planExpiresAt": null,
+    "hadPro": false,
+    "createdAt": "2026-05-05T21:13:53.625Z"
+  },
+  {
+    "id": "8459742f-93e8-437d-a47d-aa6185719bd2",
+    "name": "Empresa Comercial",
+    "plan": "PRO",
+    "planExpiresAt": "2026-10-03T19:07:47.653Z",
+    "hadPro": true,
+    "createdAt": "2026-05-05T13:40:41.023Z"
+  }
+]

@@ -9,6 +9,9 @@ const AdminLayout: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
+    console.log('DEBUG LAYOUT - Current User Data:', user);
+    console.log('DEBUG LAYOUT - User Role:', user?.role);
+    
     // Si no está cargando y el usuario no es super admin, expulsarlo al dashboard normal
     if (!isLoading && user && user.role !== 'SUPER_ADMIN') {
       console.warn('Intento de acceso denegado: No eres SUPER_ADMIN');
