@@ -41,21 +41,39 @@ export class AppController {
   @Get('run-emergency-promotion-trigger')
   async emergencyPromotion() {
     const email = 'elkinpelaez1@gmail.com';
-    
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return { success: false, error: `User ${email} not found in ACTIVE db` };
+    let migrationResults = [];
+
+    try {
+      // 1. Asegurar Estructura SQL en la base de datos real activa
+      console.log('>>> APLICANDO HOTFIX SQL EN DB REAL...');
+      
+      try { await this.prisma.$executeRawUnsafe(`ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'SUPER_ADMIN'`); migrationResults.push("ALTER ROLE OK"); } catch(e: any) { migrationResults.push("ALTER ROLE SKIP/FAIL: " + e.message); }
+      
+      try { await this.prisma.$executeRawUnsafe(`ALTER TABLE "Organization" ADD COLUMN IF NOT EXISTS "isSuspended" BOOLEAN DEFAULT false`); migrationResults.push("COL ORG OK"); } catch(e: any) { migrationResults.push("COL ORG SKIP/FAIL: " + e.message); }
+      
+      try { await this.prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isBlocked" BOOLEAN DEFAULT false`); migrationResults.push("COL USER OK"); } catch(e: any) { migrationResults.push("COL USER SKIP/FAIL: " + e.message); }
+
+      // 2. Buscar usuario
+      const user = await this.prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        return { success: false, error: `User ${email} not found in ACTIVE db`, sql: migrationResults };
+      }
+
+      // 3. Actualizar
+      const updated = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'SUPER_ADMIN' as any }
+      });
+
+      return {
+        success: true,
+        message: `NATIVE PROMOTION SUCCESSFUL`,
+        new_role: updated.role,
+        found_user_id: user.id,
+        sql_status: migrationResults
+      };
+    } catch (err: any) {
+      return { success: false, fatal: err.message, sql: migrationResults };
     }
-
-    const updated = await this.prisma.user.update({
-      where: { id: user.id },
-      data: { role: 'SUPER_ADMIN' as any }
-    });
-
-    return {
-      success: true,
-      message: `NATIVE PROMOTION SUCCESSFUL in active DB`,
-      new_role: updated.role
-    };
   }
 }
