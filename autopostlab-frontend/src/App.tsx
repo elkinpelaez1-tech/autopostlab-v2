@@ -16,6 +16,9 @@ import ContentCalendar from './pages/Calendar';
 import MediaLibrary from './pages/media/MediaLibrary';
 import AIReport from './pages/AIReport';
 import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminCompanies from './pages/admin/AdminCompanies';
+import AdminUsers from './pages/admin/AdminUsers';
 import AdminMetrics from './pages/admin/AdminMetrics';
 
 // Componente para proteger rutas
@@ -73,8 +76,11 @@ function AppRoutes() {
           </PrivateRoute>
         }
       >
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="companies" element={<AdminCompanies />} />
+        <Route path="users" element={<AdminUsers />} />
         <Route path="metrics" element={<AdminMetrics />} />
-        <Route index element={<Navigate to="/admin/metrics" replace />} />
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" />} />

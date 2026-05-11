@@ -7,6 +7,7 @@ interface User {
   email: string;
   name: string;
   workspaceId: string;
+  role?: string;
   avatarUrl?: string | null;
   plan?: string;
   planExpiresAt?: string | null;
@@ -70,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: userData.email,
                 name: userData.name,
                 workspaceId: userData.workspaceId || decoded.workspaceId,
+                role: userData.role || decoded.role,
                 avatarUrl: userData.avatarUrl || null,
                 plan: userData.organization?.plan || 'FREE',
                 planExpiresAt: userData.organization?.planExpiresAt || null,
@@ -82,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: decoded.email,
                 name: decoded.name,
                 workspaceId: decoded.workspaceId,
+                role: decoded.role,
                 avatarUrl: decoded.avatarUrl || null,
                 plan: 'FREE',
                 planExpiresAt: null,
