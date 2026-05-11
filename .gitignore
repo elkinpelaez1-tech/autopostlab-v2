@@ -56,3 +56,16 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
+
+# Scratch / Work directories
+/scratch/
+/backups/
+*.json.bak
+*.dump
+*.sql.bak
+
+# Debug Scripts
+src/diag_*
+src/promote_admin.ts
+src/do_backup.ts
+src/test_integrity.ts
