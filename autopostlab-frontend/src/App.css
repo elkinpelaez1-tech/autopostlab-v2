@@ -2453,6 +2453,7 @@ body {
 .platform-bi-card.instagram::before { background: linear-gradient(to bottom, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
 .platform-bi-card.facebook::before { background: #1877F2; }
 .platform-bi-card.linkedin::before { background: #0A66C2; }
+.platform-bi-card.tiktok::before { background: #000000; }
 
 .bi-card-head {
   display: flex;

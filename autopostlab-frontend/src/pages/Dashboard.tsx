@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   Video
 } from 'lucide-react';
+import { SiTiktok } from 'react-icons/si';
 import { 
   LineChart, 
   Line, 
@@ -95,7 +96,8 @@ const Dashboard: React.FC = () => {
     const platformCounts: Record<string, { count: number; engagement: number }> = {
       instagram: { count: 0, engagement: 0 },
       facebook: { count: 0, engagement: 0 },
-      linkedin: { count: 0, engagement: 0 }
+      linkedin: { count: 0, engagement: 0 },
+      tiktok: { count: 0, engagement: 0 }
     };
 
     publishedPosts.forEach(p => {
@@ -128,7 +130,7 @@ const Dashboard: React.FC = () => {
     const engagementData = Object.keys(platformCounts).map(key => ({
       name: key.toUpperCase(),
       engagement: platformCounts[key].engagement,
-      color: key === 'instagram' ? '#E4405F' : (key === 'facebook' ? '#1877F2' : '#0A66C2')
+      color: key === 'instagram' ? '#E4405F' : (key === 'facebook' ? '#1877F2' : (key === 'linkedin' ? '#0A66C2' : '#000000'))
     }));
 
     // Determinar mejor plataforma
@@ -151,7 +153,8 @@ const Dashboard: React.FC = () => {
       platformStats: {
         instagram: platformCounts.instagram || { count: 0, engagement: 0 },
         facebook: platformCounts.facebook || { count: 0, engagement: 0 },
-        linkedin: platformCounts.linkedin || { count: 0, engagement: 0 }
+        linkedin: platformCounts.linkedin || { count: 0, engagement: 0 },
+        tiktok: platformCounts.tiktok || { count: 0, engagement: 0 }
       },
       topPosts: topPosts,
       charts: {
@@ -365,6 +368,21 @@ const Dashboard: React.FC = () => {
                 <span className="mini-trend negative">-2%</span>
             </div>
         </div>
+
+        <div className="platform-bi-card tiktok">
+            <div className="bi-card-head">
+                <SiTiktok size={20} />
+                <span>TikTok</span>
+            </div>
+            <div className="bi-card-main">
+                <div className="main-val">{data?.platformStats.tiktok?.count || 0}</div>
+                <div className="sub-val">Posts</div>
+            </div>
+            <div className="bi-card-foot">
+                <span>Engagement: {data?.platformStats.tiktok?.engagement || 0}</span>
+                <span className="mini-trend">+12%</span>
+            </div>
+        </div>
       </div>
 
       {/* LOWER GRID: TOP POSTS AND INSIGHTS */}
@@ -379,7 +397,7 @@ const Dashboard: React.FC = () => {
               <div key={post.id} className="top-post-item">
                 <div className="post-rank">#{idx + 1}</div>
                 <div className="post-platform-icon">
-                   {post.platform === 'INSTAGRAM' ? <Instagram size={14} /> : (post.platform === 'FACEBOOK' ? <Facebook size={14} /> : <Linkedin size={14} />)}
+                   {post.platform === 'INSTAGRAM' ? <Instagram size={14} /> : (post.platform === 'FACEBOOK' ? <Facebook size={14} /> : (post.platform === 'TIKTOK' ? <SiTiktok size={14} /> : <Linkedin size={14} />))}
                 </div>
                 <div className="post-content-preview">
                   <p>{post.content.length > 60 ? post.content.substring(0, 60) + '...' : post.content}</p>
