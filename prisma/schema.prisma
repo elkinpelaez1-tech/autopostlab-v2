@@ -18,6 +18,7 @@ model User {
   refreshToken    String?
   avatarUrl       String?
   organizationId  String?
+  isBlocked       Boolean        @default(false)
   refreshTokens   RefreshToken[]
   subscriptions   Subscription[]
   usageRecords    UsageRecord[]
@@ -193,6 +194,7 @@ model Organization {
   plan                  OrgPlan               @default(FREE)
   planExpiresAt         DateTime?
   hadPro                Boolean               @default(false)
+  isSuspended          Boolean               @default(false)
   createdAt             DateTime              @default(now())
   posts                 Post[]
   socialAccounts        SocialAccount[]
@@ -213,6 +215,7 @@ model BillingNotification {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   EDITOR
   VIEWER

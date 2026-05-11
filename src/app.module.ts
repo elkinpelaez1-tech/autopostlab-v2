@@ -13,6 +13,7 @@ import { BillingModule } from './billing/billing.module';
 // import { SchedulerModule } from './scheduler/scheduler.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
 import * as fs from 'fs';
 
@@ -32,6 +33,7 @@ import { UploadController } from './upload.controller';
     FilesModule,
     BillingModule,
     AnalyticsModule,
+    AdminModule,
     MailModule,
   ],
   controllers: [AppController, UploadController],
