@@ -86,7 +86,6 @@ export class UsersService {
     if (isAdmin) {
       if (data.email) cleanData.email = data.email;
       if (data.role) cleanData.role = data.role;
-      if (data.organizationId) cleanData.organizationId = data.organizationId;
     }
 
     return this.prisma.user.update({
