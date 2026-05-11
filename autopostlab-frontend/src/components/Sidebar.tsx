@@ -55,6 +55,20 @@ const Sidebar: React.FC = () => {
             )}
           </NavLink>
         ))}
+        
+        {/* Shortcut seguro al Panel de Control Superior */}
+        {user?.role === 'SUPER_ADMIN' && (
+          <NavLink 
+            to="/admin" 
+            className="nav-item"
+            style={{ marginTop: '2rem', backgroundColor: '#fef2f2', border: '1px dashed #ef4444', color: '#b91c1c' }}
+          >
+            <span className="nav-icon-wrapper" style={{ color: '#ef4444' }}>
+              <Settings size={20} />
+            </span>
+            <span style={{ fontWeight: 600 }}>PANEL ADMIN</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-footer">
