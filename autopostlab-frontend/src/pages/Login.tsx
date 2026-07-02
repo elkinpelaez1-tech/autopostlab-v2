@@ -39,7 +39,11 @@ const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <div className="logo-large">🚀</div>
+          <img 
+            src="https://res.cloudinary.com/dgk2vhigg/image/upload/v1778007746/imagen_2026-05-05_104201396-removebg-preview_ysfqmc.png" 
+            alt="AutoPostLab" 
+            style={{ height: '110px', width: 'auto', margin: '0 auto 12px', display: 'block', objectFit: 'contain' }} 
+          />
           <h1>Bienvenido a AutopostLab</h1>
           <p>Gestiona y programa tus redes sociales con IA</p>
         </div>

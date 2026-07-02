@@ -11,7 +11,7 @@ const Home: React.FC = () => {
         <div className="container">
           <div className="nav-content">
             <div className="logo">
-              <img src="/src/assets/LOGO AUTOPOSTLAB.png" alt="AutopostLab" className="logo-img" />
+              <img src="/logo.png" alt="AutopostLab" className="logo-img" />
               <span style={{ color: '#fff' }}>AutopostLab</span>
             </div>
             <div className="nav-links">

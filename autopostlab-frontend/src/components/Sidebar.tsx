@@ -33,7 +33,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar-premium">
       <div className="sidebar-header">
-        <img src="/src/assets/LOGO AUTOPOSTLAB.png" alt="AutopostLab" className="sidebar-logo" />
+        <img src="/logo.png" alt="AutopostLab" className="sidebar-logo" />
         <span className="brand-name">AutopostLab</span>
       </div>
 
