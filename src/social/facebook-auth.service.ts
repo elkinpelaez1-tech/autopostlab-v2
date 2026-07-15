@@ -16,7 +16,7 @@ export class FacebookAuthService {
 
   constructor(private configService: ConfigService) { }
 
-  getAuthorizationUrl(workspaceId: string) {
+  getAuthorizationUrl(workspaceId: string, requestPagePublish?: boolean) {
     let appId = this.configService.get<string>('FB_APP_ID') || '';
     let redirectUri = this.configService.get<string>('FB_REDIRECT_URI') || '';
     const state = workspaceId || Date.now();
@@ -28,13 +28,21 @@ export class FacebookAuthService {
     redirectUri = redirectUri.trim().replace(/^["']|["']$/g, '');
     
     // 🔑 SCOPES OFICIALES PARA INSTAGRAM GRAPH API Y FACEBOOK PAGES (GRAPH API V19+)
-    const scope = [
+    const scopesList = [
       'public_profile',
       'pages_show_list',
       'pages_read_engagement',
       'instagram_basic',
       'instagram_content_publish'
-    ].join(",");
+    ];
+
+    // Condicionalmente incluir pages_manage_posts si se solicita por parámetro o por env var
+    const envRequestPagePublish = this.configService.get<string>('FB_REQUEST_PAGE_PUBLISH') === 'true';
+    if (requestPagePublish || envRequestPagePublish) {
+      scopesList.push('pages_manage_posts');
+    }
+
+    const scope = scopesList.join(",");
 
     // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
     const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&auth_type=rerequest`;
@@ -45,6 +53,7 @@ export class FacebookAuthService {
     console.log("FB_APP_ID Longitud:", appId.length);
     console.log("FB_REDIRECT_URI Crudo (Env):", JSON.stringify(rawRedirectUri));
     console.log("FB_REDIRECT_URI Limpio usado:", JSON.stringify(redirectUri));
+    console.log("REQUEST PAGE PUBLISH?", !!(requestPagePublish || envRequestPagePublish));
     console.log("FACEBOOK SCOPES:", scope);
     console.log("FACEBOOK AUTH URL GENERADA:", authUrl);
     console.log("--------------------------------------------------------");

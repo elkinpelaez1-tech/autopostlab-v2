@@ -36,20 +36,28 @@ export class SocialAuthController {
 
   // 1. Iniciar flujo de Facebook
   @Get('facebook')
-  async facebookAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
-    this.logger.log(`Iniciando auth de Facebook para workspace: ${workspaceId}`);
+  async facebookAuth(
+    @Query('workspaceId') workspaceId: string,
+    @Query('requestPagePublish') requestPagePublish: string,
+    @Res() res: Response
+  ) {
+    this.logger.log(`Iniciando auth de Facebook para workspace: ${workspaceId}, requestPagePublish: ${requestPagePublish}`);
     if (!workspaceId) {
       throw new InternalServerErrorException('WorkspaceId es requerido');
     }
-    const url = this.facebookAuthService.getAuthorizationUrl(workspaceId);
+    const url = this.facebookAuthService.getAuthorizationUrl(workspaceId, requestPagePublish === 'true');
     return res.redirect(url);
   }
 
   // 1b. Iniciar flujo de Instagram (usa la misma lógica de FB)
   @Get('instagram')
-  async instagramAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
-    this.logger.log(`Iniciando auth de Instagram para workspace: ${workspaceId}`);
-    return this.facebookAuth(workspaceId, res);
+  async instagramAuth(
+    @Query('workspaceId') workspaceId: string,
+    @Query('requestPagePublish') requestPagePublish: string,
+    @Res() res: Response
+  ) {
+    this.logger.log(`Iniciando auth de Instagram para workspace: ${workspaceId}, requestPagePublish: ${requestPagePublish}`);
+    return this.facebookAuth(workspaceId, requestPagePublish, res);
   }
 
 
