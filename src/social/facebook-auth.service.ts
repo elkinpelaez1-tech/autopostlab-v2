@@ -27,14 +27,13 @@ export class FacebookAuthService {
     appId = appId.trim().replace(/^["']|["']$/g, '');
     redirectUri = redirectUri.trim().replace(/^["']|["']$/g, '');
     
-    // 🔑 SCOPES ACTUALIZADOS PARA GRAPH API V19+ Y COMPATIBILIDAD CON APP CONSUMER
+    // 🔑 SCOPES OFICIALES PARA INSTAGRAM GRAPH API Y FACEBOOK PAGES (GRAPH API V19+)
     const scope = [
       'public_profile',
-      'email',
       'pages_show_list',
       'pages_read_engagement',
-      'instagram_business_basic',
-      'instagram_business_content_publish'
+      'instagram_basic',
+      'instagram_content_publish'
     ].join(",");
 
     // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
