@@ -107,6 +107,7 @@ export class TikTokAuthService {
         }
         if (finalStatus === 'FAILED') {
           const reason = statusRes?.fail_reason || 'unknown';
+      console.log('[TIKTOK] fail_reason →', reason);
           throw new Error(`TikTok video upload failed: ${reason}`);
         }
       }
@@ -160,7 +161,8 @@ export class TikTokAuthService {
         avatarUrl: user.avatar_url,
       };
     } catch (error) {
-      console.log("TIKTOK ERROR FULL:", JSON.stringify(error.response?.data));
+      console.log('TIKTOK ERROR FULL:', JSON.stringify(error.response?.data));
+    console.error('[TIKTOK] Upload HTTP error – status:', error?.response?.status, 'data:', JSON.stringify(error?.response?.data, null, 2));
       throw error;
     }
   }
@@ -345,6 +347,7 @@ export class TikTokAuthService {
       return response.data.data;
     } catch (error: any) {
       this.logger.error('TikTok initDirectUpload error', error.response?.data || error.message);
+    console.error('[TIKTOK] Init HTTP error – status:', error?.response?.status, 'data:', JSON.stringify(error?.response?.data, null, 2));
       throw error;
     }
   }
@@ -367,9 +370,11 @@ export class TikTokAuthService {
           'Content-Type': 'application/json; charset=UTF-8',
         },
       });
+    console.log('[TIKTOK] Status fetch response →', JSON.stringify(response.data, null, 2));
       return response.data?.data || response.data;
     } catch (error: any) {
       this.logger.error('TikTok checkVideoStatus error', error.response?.data || error.message);
+    console.error('[TIKTOK] Status fetch HTTP error – status:', error?.response?.status, 'data:', JSON.stringify(error?.response?.data, null, 2));
       throw error;
     }
   }
