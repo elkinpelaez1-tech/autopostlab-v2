@@ -196,77 +196,124 @@ export class PostsService {
       return await this.facebookAuthService.publishInstagramPost(account.providerAccountId, account.accessToken, finalImageUrl, content);
     }
     else if (provider === 'TIKTOK') {
-      // 🛡️ REFRESH TOKEN AUTOMÁTICO PARA TIKTOK
-      const now = new Date();
-      const bufferTime = 5 * 60 * 1000; // 5 minutos
-      
-      if (account.refreshToken && (!account.accessTokenExpires || now.getTime() + bufferTime > new Date(account.accessTokenExpires).getTime())) {
-        try {
-          console.log(`[TIKTOK] 🔑 Token expirado o por expirar para la cuenta ${account.username}. Refrescando...`);
-          const newTokens = await this.tiktokAuthService.refreshToken(account.refreshToken);
-          
-          // Actualizar el objeto en memoria para la ejecución actual
-          account.accessToken = newTokens.accessToken;
-          
-          // Persistir en base de datos para futuras publicaciones
-          await this.socialAccountsService.update(account.id, {
-            accessToken: newTokens.accessToken,
-            refreshToken: newTokens.refreshToken,
-            accessTokenExpires: newTokens.expiresAt
-          }, account.workspaceId, organizationId);
-          
-          console.log("[TIKTOK] ✅ Token renovado y guardado en DB correctamente.");
-        } catch (refreshError) {
-          console.error("[TIKTOK] ❌ Error crítico al refrescar token:", refreshError.message);
-          throw new Error("TIKTOK_SESSION_EXPIRED: Tu sesión de TikTok ha caducado y no se pudo renovar automáticamente. Por favor, desvincula y vuelve a vincular tu cuenta de TikTok.");
-        }
-      }
-
-      if (!finalImageUrl) throw new Error("VIDEO_REQUIRED_FOR_TIKTOK");
-      
-      // 0. Validar requisitos de video (Básico)
-      const lowercaseUrl = finalImageUrl.toLowerCase();
-      if (!lowercaseUrl.endsWith('.mp4') && !lowercaseUrl.includes('video')) {
-        throw new Error("TIKTOK_REQUIREMENT: Only .mp4 videos are officially supported for automated upload.");
-      }
-
-      // 1. Descargar el video
-      console.log(`[TIKTOK] Descargando video de: ${finalImageUrl}`);
-      if (!finalImageUrl) {
-        throw new Error("imageUrl is required");
-      }
-      const videoBuffer = await this.downloadFile(finalImageUrl);
-      
-      // Validar tamaño (TikTok tiene límites, ej 50MB para este flujo simplificado)
-      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-      if (videoBuffer.length > MAX_SIZE) {
-        throw new Error(`VIDEO_TOO_LARGE: El video pesa ${Math.round(videoBuffer.length/1024/1024)}MB. El límite para este flujo es 50MB.`);
-      }
-
-      console.log(`[TIKTOK] ✅ Video listo (${videoBuffer.length} bytes). Iniciando flujo multi-step.`);
-
-      try {
-        console.log('USING INBOX FLOW ONLY');
-        // 2. Inicializar upload con Inbox API (Drafts)
-        console.log(`[TIKTOK] Intentando inicializar upload para INBOX (Drafts)...`);
-        const initData = await this.tiktokAuthService.initializeInboxUpload(account.accessToken, videoBuffer.length, content);
-        console.log(`[TIKTOK] 1/2 Init Inbox OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
-        
-        // 3. Subir archivo
-        console.log(`[TIKTOK] 2/2 Subiendo bytes para Inbox... (Content-Length: ${videoBuffer.length})`);
-        await this.tiktokAuthService.uploadVideoFile(initData.upload_url, videoBuffer);
-        console.log(`[TIKTOK] 🚀 Upload binario completado. Video subido como borrador en el Inbox.`);
-
-        return initData.publish_id;
-      } catch (error: any) {
-        console.error('TIKTOK STATUS:', error?.response?.status);
-        console.error('TIKTOK HEADERS:', error?.response?.headers);
-        console.error('TIKTOK DATA:', JSON.stringify(error?.response?.data, null, 2));
-        console.error('TIKTOK MESSAGE:', error?.message);
-        console.error('TIKTOK STACK:', error?.stack);
-        throw error;
-      }
+  // Refresh token if needed (keep existing logic)
+  const now = new Date();
+  const bufferTime = 5 * 60 * 1000; // 5 minutes
+  if (
+    account.refreshToken &&
+    (!account.accessTokenExpires ||
+      now.getTime() + bufferTime >
+        new Date(account.accessTokenExpires).getTime())
+  ) {
+    try {
+      console.log(
+        `[TIKTOK] 🔑 Refreshing token for ${account.username}...`,
+      );
+      const newTokens = await this.tiktokAuthService.refreshToken(
+        account.refreshToken,
+      );
+      account.accessToken = newTokens.accessToken;
+      await this.socialAccountsService.update(
+        account.id,
+        {
+          accessToken: newTokens.accessToken,
+          refreshToken: newTokens.refreshToken,
+          accessTokenExpires: newTokens.expiresAt,
+        },
+        account.workspaceId,
+        organizationId,
+      );
+    } catch (refreshError) {
+      console.error(
+        '[TIKTOK] ❌ Token refresh failed:',
+        (refreshError as any).message,
+      );
+      throw new Error(
+        'TIKTOK_SESSION_EXPIRED: Unable to refresh TikTok token.',
+      );
     }
+  }
+
+  if (!finalImageUrl) throw new Error('VIDEO_REQUIRED_FOR_TIKTOK');
+
+  // Validate video format (must be mp4 or contain "video")
+  const lower = finalImageUrl.toLowerCase();
+  if (!lower.endsWith('.mp4') && !lower.includes('video')) {
+    throw new Error(
+      'TIKTOK_REQUIREMENT: Only .mp4 videos are supported.',
+    );
+  }
+
+  // Download video
+  console.log(`[TIKTOK] Downloading video from ${finalImageUrl}`);
+  const videoBuffer = await this.downloadFile(finalImageUrl);
+  const MAX_SIZE = 50 * 1024 * 1024; // 50MB limit
+  if (videoBuffer.length > MAX_SIZE) {
+    throw new Error(
+      `VIDEO_TOO_LARGE: ${Math.round(
+        videoBuffer.length / 1024 / 1024,
+      )}MB exceeds 50MB limit.`,
+    );
+  }
+
+  // 1️⃣ Query creator info for privacy options
+  const creatorInfo = await this.tiktokAuthService.creatorInfoQuery(
+    account.accessToken,
+  );
+  const privacyOpts = creatorInfo?.privacy_level_options || [];
+  const chosenPrivacy = privacyOpts.includes('SELF_ONLY')
+    ? 'SELF_ONLY'
+    : privacyOpts[0] || 'SELF_ONLY';
+  console.log(`[TIKTOK] Selected privacy: ${chosenPrivacy}`);
+
+  // 2️⃣ Initialise upload with selected privacy
+  const initData = await this.tiktokAuthService.initializeDirectUpload(
+    account.accessToken,
+    videoBuffer.length,
+    chosenPrivacy,
+  );
+  console.log(
+    `[TIKTOK] Init OK – publish_id=${initData.publish_id}`,
+  );
+
+  // 3️⃣ Upload video bytes
+  await this.tiktokAuthService.uploadVideoFile(
+    initData.upload_url,
+    videoBuffer,
+  );
+  console.log('[TIKTOK] Upload completed');
+
+  // 4️⃣ Poll status using publish_id until PUBLISH_COMPLETE or FAILED
+  const publishId = initData.publish_id;
+  let attempts = 0;
+  const maxAttempts = 5;
+  let finalStatus = '';
+  while (attempts < maxAttempts) {
+    attempts++;
+    await new Promise(r => setTimeout(r, 2000));
+    const statusRes = await this.tiktokAuthService.checkVideoStatus(
+      account.accessToken,
+      publishId,
+    );
+    finalStatus = statusRes?.status;
+    console.log(`[TIKTOK] Poll ${attempts}: ${finalStatus}`);
+    if (finalStatus === 'PUBLISH_COMPLETE') {
+      console.log('[TIKTOK] ✅ Publish complete');
+      break;
+    }
+    if (finalStatus === 'FAILED') {
+      const reason = statusRes?.fail_reason || 'unknown';
+      throw new Error(`TikTok video upload failed: ${reason}`);
+    }
+  }
+  if (finalStatus !== 'PUBLISH_COMPLETE') {
+    throw new Error(
+      `TikTok video did not reach PUBLISH_COMPLETE; last status: ${finalStatus}`,
+    );
+  }
+
+  return publishId;
+}
     throw new Error(`Proveedor ${provider} no soportado.`);
   }
 

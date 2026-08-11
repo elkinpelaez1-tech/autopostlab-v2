@@ -68,7 +68,51 @@ export class TikTokAuthService {
 
       // Estructura sugerida por el usuario: openId, accessToken, refreshToken, expiresAt
       console.log('TIKTOK ACCESS TOKEN:', tokenPayload.access_token);
-      console.log('TIKTOK REFRESH TOKEN:', tokenPayload.refresh_token);
+      console.log('USING DIRECT POST FLOW');
+
+      // 1️⃣  Obtener opciones de privacidad
+      const creatorInfo = await this.creatorInfoQuery(tokenPayload.access_token);
+      const privacyOptions = creatorInfo?.privacy_level_options || [];
+      const chosenPrivacy = privacyOptions.includes('SELF_ONLY')
+        ? 'SELF_ONLY'
+        : privacyOptions[0] || 'SELF_ONLY';
+      console.log(`[TIKTOK] Privacy level elegida: ${chosenPrivacy}`);
+
+      // 2️⃣ Initialise upload with chosen privacy
+      console.log(`[TIKTOK] Intentando inicializar upload directo...`);
+      // Note: This assumes this.initializeDirectUpload exists, usually added in extended logic
+      const initData = await (this as any).initializeDirectUpload(
+        tokenPayload.access_token,
+        0, // placeholder, would be videoBuffer.length
+        chosenPrivacy,
+      );
+      console.log(`[TIKTOK] 1/3 Init OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
+
+      // 3️⃣ Subir archivo binario
+      console.log(`[TIKTOK] 2/3 Subiendo bytes...`);
+      // 4️⃣ Poll status until publish complete or failure
+      const publishId = initData.publish_id;
+      let attempts = 0;
+      const maxAttempts = 5;
+      let finalStatus = '';
+      while (attempts < maxAttempts) {
+        attempts++;
+        await new Promise(r => setTimeout(r, 2000));
+        const statusRes = await (this as any).checkVideoStatus(tokenPayload.access_token, publishId);
+        finalStatus = statusRes?.status;
+        console.log(`[TIKTOK] Poll ${attempts}: status = ${finalStatus}`);
+        if (finalStatus === 'PUBLISH_COMPLETE') {
+          console.log('[TIKTOK] ✅ Publicación completada exitosamente.');
+          break;
+        }
+        if (finalStatus === 'FAILED') {
+          const reason = statusRes?.fail_reason || 'unknown';
+          throw new Error(`TikTok video upload failed: ${reason}`);
+        }
+      }
+      if (finalStatus !== 'PUBLISH_COMPLETE') {
+        throw new Error(`TikTok video did not reach PUBLISH_COMPLETE; último estado: ${finalStatus}`);
+      }
 
       return {
         accessToken: tokenPayload.access_token,
@@ -251,4 +295,84 @@ export class TikTokAuthService {
   }
 
 
+
+  /**
+   * Query creator info to obtain allowed privacy levels.
+   * Docs: https://developers.tiktok.com/doc/content-posting-api-v2-creator-info-query/
+   */
+  async creatorInfoQuery(accessToken: string) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/creator_info/query/';
+    try {
+      const response = await axios.post(url, {}, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      });
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      this.logger.error('TikTok creator_info/query error', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialise a Direct Post upload (video.publish).
+   * Docs: https://developers.tiktok.com/doc/content-posting-api-v2-post-publish-video-init/
+   */
+  async initializeDirectUpload(accessToken: string, videoSize: number, privacyLevel: string) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+    const postInfo = { privacy_level: privacyLevel };
+    const body = {
+      post_info: postInfo,
+      source_info: {
+        source: 'FILE_UPLOAD',
+        video_size: videoSize,
+        chunk_size: videoSize,
+        total_chunk_count: 1,
+      },
+    };
+    try {
+      const response = await axios.post(url, body, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      });
+      if (response.data.error) {
+        throw new Error(`TikTok Init Direct Upload error: ${JSON.stringify(response.data.error)}`);
+      }
+      return response.data.data;
+    } catch (error: any) {
+      this.logger.error('TikTok initDirectUpload error', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+
+  /**
+   * Poll video status after upload.
+   * Docs: https://developers.tiktok.com/doc/content-posting-api-v2-status-fetch/
+   */
+  /**
+   * Poll video status after upload.
+   * Docs: https://developers.tiktok.com/doc/content-posting-api-v2-status-fetch/
+   */
+  async checkVideoStatus(accessToken: string, publishId: string) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/status/fetch/';
+    try {
+      const response = await axios.post(url, { publish_id: publishId }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      });
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      this.logger.error('TikTok checkVideoStatus error', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
 }
+
