@@ -18,28 +18,57 @@ export class PostsService {
     private tiktokAuthService: TikTokAuthService,
     private socialAccountsService: SocialAccountsService,
     private filesService: FilesService,
-  ) {}
+  ) { }
 
   async create(workspaceId: string, organizationId: string, dto: CreatePostDto) {
     console.log("DEBUG: Datos recibidos para crear post:", JSON.stringify({ workspaceId, organizationId, dto }, null, 2));
-    
+
     // PLAN ENFORCEMENT: Verificar límites de publicaciones por mes
     const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
     if (organization && organization.plan !== 'AGENCY') {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      
-      const postsCount = await this.prisma.post.count({
-        where: {
-          organizationId,
-          createdAt: {
-            gte: startOfMonth,
-            lte: endOfMonth
+
+      let postsCount = 0;
+      if (organization.plan === 'FREE') {
+        postsCount = await this.prisma.post.count({
+          where: {
+            organizationId,
+            createdAt: {
+              gte: startOfMonth,
+              lte: endOfMonth
+            }
           }
-        }
-      });
-      
+        });
+      } else if (organization.plan === 'PRO') {
+        postsCount = await this.prisma.post.count({
+          where: {
+            organizationId,
+            isDraft: false,
+            createdAt: {
+              gte: startOfMonth,
+              lte: endOfMonth
+            },
+            scheduledPosts: {
+              some: {
+                status: 'PUBLISHED'
+              }
+            }
+          }
+        });
+      } else {
+        postsCount = await this.prisma.post.count({
+          where: {
+            organizationId,
+            createdAt: {
+              gte: startOfMonth,
+              lte: endOfMonth
+            }
+          }
+        });
+      }
+
       const limit = organization.plan === 'FREE' ? 20 : (organization.plan === 'PRO' ? 200 : 0);
       if (postsCount >= limit) {
         throw new ForbiddenException('Has alcanzado el límite de publicaciones de tu plan para este mes');
@@ -81,7 +110,7 @@ export class PostsService {
 
     const executionResults: Record<string, { status: string; error?: string | null; providerId?: string | null; provider: string }> = {};
     const accountIds = dto.accountIds || [];
-    
+
     // 2. Procesar cada cuenta seleccionada de forma independiente
     for (const accountId of accountIds) {
       const account = await this.socialAccountsService.findOne(accountId, workspaceId, organizationId);
@@ -101,7 +130,7 @@ export class PostsService {
             organizationId,
             imageUrl
           );
-          
+
           console.log("PLATFORM RESULT:", provider, { success: true, id: providerPostId });
           executionResults[accountId] = { status: 'success', providerId: providerPostId, provider };
         } catch (error: any) {
@@ -130,7 +159,7 @@ export class PostsService {
     // 4. Calcular estado general de la respuesta
     const totalSelected = accountIds.length;
     const successes = Object.values(executionResults).filter(r => r.status === 'success').length;
-    
+
     let finalStatus = 'PUBLISHED';
     let success = true;
 
@@ -171,9 +200,9 @@ export class PostsService {
           const buffer = fs.readFileSync(absolutePath);
           const ext = path.extname(absolutePath).substring(1) || 'png';
           finalImageUrl = await this.filesService.uploadFromBuffer(
-            account.workspaceId, 
-            buffer, 
-            path.basename(absolutePath), 
+            account.workspaceId,
+            buffer,
+            path.basename(absolutePath),
             `image/${ext}`
           );
           console.log(`[DEBUG] Imagen local subida con éxito: ${finalImageUrl}`);
@@ -187,7 +216,7 @@ export class PostsService {
     if (provider === 'LINKEDIN') {
       const res = await this.linkedinAuthService.createPost(account.accessToken, account.providerAccountId, content, finalImageUrl);
       return res.id || JSON.stringify(res);
-    } 
+    }
     else if (provider === 'FACEBOOK') {
       return await this.facebookAuthService.publishFacebookPost(account.providerAccountId, account.accessToken, content, finalImageUrl);
     }
@@ -199,22 +228,22 @@ export class PostsService {
       // 🛡️ REFRESH TOKEN AUTOMÁTICO PARA TIKTOK
       const now = new Date();
       const bufferTime = 5 * 60 * 1000; // 5 minutos
-      
+
       if (account.refreshToken && (!account.accessTokenExpires || now.getTime() + bufferTime > new Date(account.accessTokenExpires).getTime())) {
         try {
           console.log(`[TIKTOK] 🔑 Token expirado o por expirar para la cuenta ${account.username}. Refrescando...`);
           const newTokens = await this.tiktokAuthService.refreshToken(account.refreshToken);
-          
+
           // Actualizar el objeto en memoria para la ejecución actual
           account.accessToken = newTokens.accessToken;
-          
+
           // Persistir en base de datos para futuras publicaciones
           await this.socialAccountsService.update(account.id, {
             accessToken: newTokens.accessToken,
             refreshToken: newTokens.refreshToken,
             accessTokenExpires: newTokens.expiresAt
           }, account.workspaceId, organizationId);
-          
+
           console.log("[TIKTOK] ✅ Token renovado y guardado en DB correctamente.");
         } catch (refreshError) {
           console.error("[TIKTOK] ❌ Error crítico al refrescar token:", refreshError.message);
@@ -223,7 +252,7 @@ export class PostsService {
       }
 
       if (!finalImageUrl) throw new Error("VIDEO_REQUIRED_FOR_TIKTOK");
-      
+
       // 0. Validar requisitos de video (Básico)
       const lowercaseUrl = finalImageUrl.toLowerCase();
       if (!lowercaseUrl.endsWith('.mp4') && !lowercaseUrl.includes('video')) {
@@ -236,11 +265,11 @@ export class PostsService {
         throw new Error("imageUrl is required");
       }
       const videoBuffer = await this.downloadFile(finalImageUrl);
-      
+
       // Validar tamaño (TikTok tiene límites, ej 50MB para este flujo simplificado)
       const MAX_SIZE = 50 * 1024 * 1024; // 50MB
       if (videoBuffer.length > MAX_SIZE) {
-        throw new Error(`VIDEO_TOO_LARGE: El video pesa ${Math.round(videoBuffer.length/1024/1024)}MB. El límite para este flujo es 50MB.`);
+        throw new Error(`VIDEO_TOO_LARGE: El video pesa ${Math.round(videoBuffer.length / 1024 / 1024)}MB. El límite para este flujo es 50MB.`);
       }
 
       console.log(`[TIKTOK] ✅ Video listo (${videoBuffer.length} bytes). Iniciando flujo multi-step.`);
@@ -281,17 +310,17 @@ export class PostsService {
   }
 
   async findAllByWorkspace(workspaceId: string, organizationId: string) {
-    if(!workspaceId || !organizationId) throw new Error("Workspace ID and Organization ID are required");
+    if (!workspaceId || !organizationId) throw new Error("Workspace ID and Organization ID are required");
     return this.prisma.post.findMany({
       where: { workspaceId, organizationId },
       orderBy: { createdAt: 'desc' },
-      include: { 
+      include: {
         scheduledPosts: {
           include: {
             socialAccount: true
           }
         },
-        files: { include: { file: true } } 
+        files: { include: { file: true } }
       }
     });
   }
@@ -303,7 +332,7 @@ export class PostsService {
 
     // 2. Eliminar programaciones manuales (si no hay cascade en schema)
     await this.prisma.scheduledPost.deleteMany({ where: { postId: id } });
-    
+
     // 3. Eliminar archivos relacionados
     await this.prisma.postFile.deleteMany({ where: { postId: id } });
 
@@ -329,7 +358,7 @@ export class PostsService {
 
     return this.prisma.scheduledPost.update({
       where: { id: scheduledId },
-      data: { 
+      data: {
         scheduledAt: new Date(scheduledAt),
         status: 'PENDING' // Al reprogramar, vuelve a pendiente si estaba en error
       }
@@ -339,7 +368,7 @@ export class PostsService {
   async publishScheduledPostNow(scheduledId: string, workspaceId: string, organizationId: string) {
     const sp = await this.prisma.scheduledPost.findFirst({
       where: { id: scheduledId, workspaceId },
-      include: { 
+      include: {
         post: { include: { files: { include: { file: true } } } },
         socialAccount: true
       }
@@ -359,17 +388,17 @@ export class PostsService {
 
       return this.prisma.scheduledPost.update({
         where: { id: scheduledId },
-        data: { 
-            status: 'PUBLISHED',
-            errorMessage: null
+        data: {
+          status: 'PUBLISHED',
+          errorMessage: null
         }
       });
     } catch (error) {
       await this.prisma.scheduledPost.update({
         where: { id: scheduledId },
-        data: { 
-            status: 'FAILED',
-            errorMessage: error.message
+        data: {
+          status: 'FAILED',
+          errorMessage: error.message
         }
       });
       throw error;
