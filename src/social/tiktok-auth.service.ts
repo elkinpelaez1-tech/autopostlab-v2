@@ -67,8 +67,7 @@ export class TikTokAuthService {
       const tokenPayload = data.data ? data.data : data;
 
       // Estructura sugerida por el usuario: openId, accessToken, refreshToken, expiresAt
-      console.log('TIKTOK ACCESS TOKEN:', tokenPayload.access_token);
-      console.log('TIKTOK REFRESH TOKEN:', tokenPayload.refresh_token);
+      this.logger.log(`[TIKTOK][TokenExchange] status=${response.status}, scope=${tokenPayload.scope}, token_type=${tokenPayload.token_type}`);
 
       return {
         accessToken: tokenPayload.access_token,
