@@ -278,7 +278,7 @@ export class PostsService {
         console.log('USING DIRECT POST FLOW');
         // 2. Inicializar upload con Direct Post API (creator_info/query + video/init)
         console.log(`[TIKTOK] Intentando inicializar upload para DIRECT POST...`);
-        const initData = await this.tiktokAuthService.initializeInboxUpload(account.accessToken, videoBuffer.length, content);
+        const initData = await this.tiktokAuthService.initializeDirectUpload(account.accessToken, videoBuffer.length, content);
         console.log(`[TIKTOK] 1/2 Init Direct Post OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
 
         // 3. Subir archivo
