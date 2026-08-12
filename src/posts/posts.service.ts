@@ -246,22 +246,25 @@ export class PostsService {
       console.log(`[TIKTOK] ✅ Video listo (${videoBuffer.length} bytes). Iniciando flujo multi-step.`);
 
       try {
-        console.log('USING INBOX FLOW ONLY');
-        // 2. Inicializar upload con Inbox API (Drafts)
-        console.log(`[TIKTOK] Intentando inicializar upload para INBOX (Drafts)...`);
-        const initData = await this.tiktokAuthService.initializeInboxUpload(account.accessToken, videoBuffer.length, content);
-        console.log(`[TIKTOK] 1/2 Init Inbox OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
-        
+        console.log('USING DIRECT POST FLOW');
+        // 2. Inicializar upload con Direct Post API (creator_info/query + video/init)
+        console.log(`[TIKTOK] Intentando inicializar upload para DIRECT POST...`);
+        const initData = await this.tiktokAuthService.initializeDirectUpload(account.accessToken, videoBuffer.length, content);
+        console.log(`[TIKTOK] 1/2 Init Direct Post OK: publish_id=${initData.publish_id}, upload_url=${initData.upload_url}`);
+
         // 3. Subir archivo
-        console.log(`[TIKTOK] 2/2 Subiendo bytes para Inbox... (Content-Length: ${videoBuffer.length})`);
+        console.log(`[TIKTOK] 2/2 Subiendo bytes para Direct Post... (Content-Length: ${videoBuffer.length})`);
         await this.tiktokAuthService.uploadVideoFile(initData.upload_url, videoBuffer);
-        console.log(`[TIKTOK] 🚀 Upload binario completado. Video subido como borrador en el Inbox.`);
+        console.log(`[TIKTOK] 🚀 Upload binario completado. Video enviado a publicación directa.`);
 
         return initData.publish_id;
       } catch (error: any) {
-        console.error('TIKTOK STATUS:', error?.response?.status);
-        console.error('TIKTOK HEADERS:', error?.response?.headers);
-        console.error('TIKTOK DATA:', JSON.stringify(error?.response?.data, null, 2));
+        const status = error?.response?.status;
+        const errData = error?.response?.data?.error;
+        console.error('TIKTOK HTTP STATUS:', status);
+        console.error('TIKTOK error.code:', errData?.code);
+        console.error('TIKTOK error.message:', errData?.message);
+        console.error('TIKTOK error.log_id:', errData?.log_id);
         console.error('TIKTOK MESSAGE:', error?.message);
         console.error('TIKTOK STACK:', error?.stack);
         throw error;

@@ -160,6 +160,126 @@ export class TikTokAuthService {
     }
   }
   /**
+   * Registra el error de TikTok en logs sin exponer tokens ni secretos.
+   */
+  private logTikTokError(context: string, error: any) {
+    const status = error.response?.status;
+    const errData = error.response?.data?.error;
+    console.error(`--- [TIKTOK][${context}] ERROR ---`);
+    console.error('HTTP Status:', status);
+    console.error('error.code:', errData?.code);
+    console.error('error.message:', errData?.message);
+    console.error('error.log_id:', errData?.log_id);
+    console.error('----------------------------------------');
+  }
+
+  /**
+   * Consulta las opciones de privacidad y restricciones de interacción del creador.
+   * Requisito previo obligatorio antes de post/publish/video/init/ (Direct Post).
+   * Doc: https://developers.tiktok.com/doc/content-posting-api-v2-get-creator-info/
+   */
+  async getCreatorInfo(accessToken: string) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/creator_info/query/';
+
+    if (!accessToken || accessToken === 'undefined') {
+      throw new Error("TikTok API Request blocked: Access Token is missing or undefined.");
+    }
+
+    try {
+      const response = await axios.post(url, {}, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      });
+
+      console.log('[TIKTOK][creator_info] Status HTTP:', response.status);
+      console.log('[TIKTOK][creator_info] Data:', JSON.stringify(response.data, null, 2));
+
+      if (response.data.error && response.data.error.code !== 'ok') {
+        throw new Error(`TikTok Creator Info Error: ${JSON.stringify(response.data.error)}`);
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      this.logTikTokError('creator_info/query', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Inicializa la subida de un video para Direct Post (publicación directa)
+   * Doc: https://developers.tiktok.com/doc/content-posting-api-v2-post-publish-video-init/
+   */
+  async initializeDirectUpload(accessToken: string, videoSize: number, text: string) {
+    const url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+
+    if (!accessToken || accessToken === 'undefined') {
+      throw new Error("TikTok API Request blocked: Access Token is missing or undefined.");
+    }
+
+    // 1. Obtener opciones válidas de privacidad y restricciones del creador
+    const creatorInfo = await this.getCreatorInfo(accessToken);
+    const privacyOptions: string[] = creatorInfo?.privacy_level_options || [];
+
+    if (!privacyOptions.length) {
+      throw new Error('TikTok Direct Post Error: No se recibieron privacy_level_options válidas del creador.');
+    }
+
+    const chosenPrivacyLevel = privacyOptions.includes('SELF_ONLY')
+      ? 'SELF_ONLY'
+      : privacyOptions[0];
+
+    console.log(`[TIKTOK][direct_upload] privacy_level_options: ${JSON.stringify(privacyOptions)} | Elegido: ${chosenPrivacyLevel}`);
+
+    const body = {
+      post_info: {
+        title: text,
+        privacy_level: chosenPrivacyLevel,
+        disable_duet: !!creatorInfo?.duet_disabled,
+        disable_comment: !!creatorInfo?.comment_disabled,
+        disable_stitch: !!creatorInfo?.stitch_disabled,
+      },
+      source_info: {
+        source: 'FILE_UPLOAD',
+        video_size: videoSize,
+        chunk_size: videoSize,
+        total_chunk_count: 1,
+      },
+    };
+
+    console.log('------------------ [TIKTOK DIRECT POST DEBUG] ------------------');
+    console.log(`URL de inicialización: ${url}`);
+    console.log('PAYLOAD enviado a TikTok:', JSON.stringify(body, null, 2));
+
+    try {
+      this.logger.log(`Inicializando Direct Post en TikTok. Tamaño: ${videoSize} bytes`);
+
+      const response = await axios.post(url, body, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      });
+
+      console.log('--- RESPUESTA DE TIKTOK (DIRECT POST INIT) ---');
+      console.log('Status HTTP:', response.status);
+      console.log('Body de respuesta:', JSON.stringify(response.data, null, 2));
+
+      if (response.data.error && response.data.error.code !== 'ok') {
+        this.logTikTokError('post/publish/video/init', { response });
+        throw new Error(`TikTok Direct Post Init Error: ${JSON.stringify(response.data.error)}`);
+      }
+
+      this.logger.log(`✅ Direct Post inicializado. Publish ID: ${response.data.data?.publish_id}`);
+      return response.data.data; // Contiene publish_id y upload_url
+    } catch (error: any) {
+      this.logTikTokError('post/publish/video/init', error);
+      throw error;
+    }
+  }
+
+  /**
    * Inicializa la subida de un video para Inbox (Drafts)
    * Doc: https://developers.tiktok.com/doc/content-posting-api-v2-post-publish-inbox-video-init/
    */
