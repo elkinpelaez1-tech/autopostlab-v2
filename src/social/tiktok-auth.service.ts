@@ -369,5 +369,25 @@ export class TikTokAuthService {
     }
   }
 
-
+  /**
+   * Consulta el estado de una publicación mediante su publish_id
+   */
+  async getPublishStatus(publishId: string, accessToken: string) {
+    try {
+      const response = await axios.post(
+        'https://open.tiktokapis.com/v2/post/publish/status/fetch/',
+        { publish_id: publishId },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+        },
+      );
+      return response.data?.data; // Devolverá { status, fail_reason, etc. }
+    } catch (error: any) {
+      this.logger.error(`[TIKTOK] Error fetching publish status para publish_id ${publishId}`);
+      throw error;
+    }
+  }
 }

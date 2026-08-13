@@ -286,7 +286,30 @@ export class PostsService {
         await this.tiktokAuthService.uploadVideoFile(initData.upload_url, videoBuffer);
         console.log(`[TIKTOK] 🚀 Upload binario completado. Video enviado a publicación directa.`);
 
-        return initData.publish_id;
+        // 4. Polling del estado de publicación
+        let attempts = 0;
+        const maxAttempts = 12;
+        while (attempts < maxAttempts) {
+          attempts++;
+          const statusData = await this.tiktokAuthService.getPublishStatus(initData.publish_id, account.accessToken);
+          const currentStatus = statusData?.status;
+          const failReason = statusData?.fail_reason;
+
+          console.log(`[TIKTOK] Polling status check (${attempts}/${maxAttempts}): publish_id=${initData.publish_id}, status=${currentStatus}, fail_reason=${failReason || 'N/A'}`);
+
+          if (currentStatus === 'PUBLISH_COMPLETE') {
+            return initData.publish_id;
+          } else if (currentStatus === 'FAILED') {
+            throw new Error(`Publicación en TikTok falló: ${failReason || 'Unknown error'}`);
+          }
+
+          // PROCESSING_UPLOAD u otro estado intermedio, esperamos y reintentamos
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          }
+        }
+
+        throw new Error(`Timeout esperando el estado de la publicación de TikTok (publish_id: ${initData.publish_id})`);
       } catch (error: any) {
         const status = error?.response?.status;
         const errData = error?.response?.data?.error;
