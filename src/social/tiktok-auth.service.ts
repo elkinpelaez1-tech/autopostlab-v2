@@ -384,6 +384,10 @@ export class TikTokAuthService {
           },
         },
       );
+
+      // Loggear de forma segura todos los campos de data (sin tokens ni secretos)
+      console.log(`[TIKTOK] Fetch Status Response Completa para publish_id ${publishId}:`, JSON.stringify(response.data?.data || {}, null, 2));
+
       return response.data?.data; // Devolverá { status, fail_reason, etc. }
     } catch (error: any) {
       this.logger.error(`[TIKTOK] Error fetching publish status para publish_id ${publishId}`);
