@@ -181,9 +181,9 @@ export class SocialAccountsService {
       try {
         this.logger.log(`🔍 [IG DETECTION] Escaneando página FB: ${page.displayName} (${page.providerAccountId})`);
         
-        // 2. Consultar directamente /{page-id}?fields=id,name,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url} con su Page Access Token en v19.0
+        // 2. Consultar directamente /{page-id}?fields=id,name,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url} con su Page Access Token en v22.0
         const fields = 'id,name,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url}';
-        const url = `https://graph.facebook.com/v19.0/${page.providerAccountId}?fields=${fields}&access_token=${page.accessToken}`;
+        const url = `https://graph.facebook.com/v22.0/${page.providerAccountId}?fields=${fields}&access_token=${page.accessToken}`;
         const response = await fetch(url);
         const data = await response.json();
 

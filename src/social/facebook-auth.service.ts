@@ -200,30 +200,7 @@ export class FacebookAuthService {
             accessToken: page.access_token, // 🔥 OBLIGATORIO: Usar Page Access Token para publicar en IG
           });
         } else {
-          // Caso fallback: /me/accounts no devolvió instagram_business_account.
-          // Realizamos una consulta puntual a la página para intentar obtenerla.
-          const fallbackFields = 'instagram_business_account,connected_instagram_account';
-          const fallbackUrl = `https://graph.facebook.com/v19.0/${page.id}?fields=${fallbackFields}&access_token=${page.access_token}`;
-          try {
-            const fallbackRes = await fetch(fallbackUrl);
-            const fallbackData = await fallbackRes.json();
-
-            // Priorizar instagram_business_account; si no existe, usar connected_instagram_account
-            const igInfo = fallbackData.instagram_business_account || fallbackData.connected_instagram_account;
-            if (igInfo) {
-              console.log(`📸 [IG DEBUG] DETECTADO INSTAGRAM (fallback): ${igInfo.username || igInfo.id} vinculado a página: ${page.name}`);
-              accounts.push({
-                provider: 'INSTAGRAM',
-                providerAccountId: igInfo.id,
-                username: igInfo.username || `ig_${igInfo.id}`,
-                displayName: igInfo.name || igInfo.username || page.name,
-                avatarUrl: igInfo.profile_picture_url || null,
-                accessToken: page.access_token, // reutilizamos el mismo Page Access Token
-              });
-            }
-          } catch (e) {
-            this.logger.error(`❌ [IG FALLBACK] Error consultando Instagram para la página ${page.id}:`, e);
-          }
+        // Fallback removed: v22.0 API provides Instagram data directly
         }
       }
     }
