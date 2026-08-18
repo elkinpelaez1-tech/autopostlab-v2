@@ -42,11 +42,18 @@ export class FacebookAuthService {
       scopesList.push('pages_manage_posts');
     }
 
-    const scope = scopesList.join(",");
+    const scope = scopesList.join(',');
 
-    // ✅ CONSTRUCCIÓN DIRECTA CON auth_type=rerequest PARA FORZAR PERMISOS
-    const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&auth_type=rerequest`;
-
+    // ---- BUSINESS LOGIN SUPPORT ----
+    const configId = this.configService.get<string>('FB_CONFIG_ID');
+    let authUrl: string;
+    if (configId) {
+      // Cuando se provee config_id, usamos el flujo Business Login (no enviamos scope)
+      authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&response_type=code&override_default_response_type=true&config_id=${configId}&state=${state}&auth_type=rerequest`;
+    } else {
+      // Flujo tradicional (mantener compatibilidad)
+      authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&auth_type=rerequest`;
+    }
     console.log("---------------- [FACEBOOK OAUTH DEBUG] ----------------");
     console.log("FB_APP_ID Crudo (Env):", JSON.stringify(rawAppId));
     console.log("FB_APP_ID Limpio usado:", JSON.stringify(appId));
@@ -79,6 +86,32 @@ export class FacebookAuthService {
       this.logger.error('Error intercambiando código:', data.error);
       throw new Error(data.error.message);
     }
+
+    // ---------- TEMP DIAGNOSTIC LOGS (safe) ----------
+    try {
+      const appAccessToken = `${appId}|${appSecret}`;
+      const debugUrl = `https://graph.facebook.com/v22.0/debug_token?input_token=${data.access_token}&access_token=${appAccessToken}`;
+      const debugRes = await fetch(debugUrl);
+      const debugInfo = await debugRes.json();
+      console.log('--- FACEBOOK TOKEN DEBUG INFO ---');
+      console.log('app_id:', debugInfo.data?.app_id);
+      console.log('user_id:', debugInfo.data?.user_id);
+      console.log('granular_scopes:', debugInfo.data?.granular_scopes);
+      console.log('data_access_expiration_time:', debugInfo.data?.data_access_expiration_time);
+    } catch (e) {
+      console.error('Error fetching debug_token:', e);
+    }
+
+    try {
+      const accountsUrl = `https://graph.facebook.com/v22.0/me/accounts?access_token=${data.access_token}`;
+      const accountsRes = await fetch(accountsUrl);
+      const accountsData = await accountsRes.json();
+      console.log('--- /me/accounts RESPONSE (DIAGNOSTIC) ---');
+      console.log(JSON.stringify(accountsData, null, 2));
+    } catch (e) {
+      console.error('Error fetching /me/accounts:', e);
+    }
+    // ---------------------------------------------------
 
     return data.access_token;
   }
