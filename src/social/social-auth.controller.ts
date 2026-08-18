@@ -82,23 +82,23 @@ export class SocialAuthController {
     }
 
     try {
-      console.log('STEP 1: code recibido:', code);
+      console.log('STEP 1: code recibido: [REDACTED]');
       this.logger.log(`Procesando callback de Facebook para workspace: ${workspaceId}`);
 
       // A. Intercambiar código por token de usuario
       console.log('STEP 2: intercambiando token...');
       const userToken = await this.facebookAuthService.exchangeCodeForToken(code);
-      console.log('STEP 3: access_token obtenido:', userToken);
+      console.log('STEP 3: access_token obtenido: [REDACTED]');
 
       // B. Obtener token de larga duración
       console.log('STEP 4: obteniendo token de larga duración...');
       const longLivedToken = await this.facebookAuthService.getLongLivedToken(userToken);
-      console.log('STEP 5: long_lived_token obtenido:', longLivedToken);
+      console.log('STEP 5: long_lived_token obtenido: [REDACTED]');
 
       // C. Listar cuentas (Facebook Pages + Instagram Business)
       console.log('STEP 6: llamando /me/accounts...');
       const allAccounts = await this.facebookAuthService.getFacebookAndInstagramAccounts(longLivedToken);
-      console.log('STEP 7: respuesta páginas conectadas:', allAccounts);
+      console.log('STEP 7: cuentas encontradas:', allAccounts.length);
 
       if (allAccounts.length === 0) {
         console.log('ANTES DE REDIRECT DE NO ACCOUNTS');
@@ -117,7 +117,7 @@ export class SocialAuthController {
           avatarUrl: account.avatarUrl,
           accessToken: account.accessToken,
         }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
-        console.log('ACCOUNT SAVED TO DB:', savedAccount);
+        console.log(`ACCOUNT SAVED: provider=${savedAccount.provider}, username=${savedAccount.username}`);
       }
 
       // E. Redirigir de vuelta al Frontend

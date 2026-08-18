@@ -42,26 +42,27 @@ export class FacebookAuthService {
       scopesList.push('pages_manage_posts');
     }
 
-    const scope = scopesList.join(',');
+    // Validate required environment variables (present/missing only)
+    const requiredEnv = {
+      FB_APP_ID: appId,
+      FB_APP_SECRET: this.configService.get<string>('FB_APP_SECRET') || '',
+      FB_REDIRECT_URI: redirectUri,
+      FB_CONFIG_ID: this.configService.get<string>('FB_CONFIG_ID') || '',
+    };
+    Object.entries(requiredEnv).forEach(([key, value]) => {
+      this.logger.log(`ENV ${key}: ${value ? 'PRESENT' : 'MISSING'}`);
+      if (!value) {
+        throw new Error(`Missing required environment variable: ${key}`);
+      }
+    });
 
-    // ---- BUSINESS LOGIN SUPPORT ----
-    const configId = this.configService.get<string>('FB_CONFIG_ID');
-    let authUrl: string;
-    if (configId) {
-      // Cuando se provee config_id, usamos el flujo Business Login (no enviamos scope)
-      authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&response_type=code&override_default_response_type=true&config_id=${configId}&state=${state}&auth_type=rerequest`;
-    } else {
-      // Flujo tradicional (mantener compatibilidad)
-      authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&auth_type=rerequest`;
-    }
+    const configId = requiredEnv.FB_CONFIG_ID;
+    // Cuando se provee config_id, usamos el flujo Business Login (no enviamos scope)
+    const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&response_type=code&override_default_response_type=true&config_id=${configId}&state=${state}&auth_type=rerequest`;
+
     console.log("---------------- [FACEBOOK OAUTH DEBUG] ----------------");
-    console.log("FB_APP_ID Crudo (Env):", JSON.stringify(rawAppId));
-    console.log("FB_APP_ID Limpio usado:", JSON.stringify(appId));
-    console.log("FB_APP_ID Longitud:", appId.length);
-    console.log("FB_REDIRECT_URI Crudo (Env):", JSON.stringify(rawRedirectUri));
-    console.log("FB_REDIRECT_URI Limpio usado:", JSON.stringify(redirectUri));
     console.log("REQUEST PAGE PUBLISH?", !!(requestPagePublish || envRequestPagePublish));
-    console.log("FACEBOOK SCOPES:", scope);
+    console.log("FACEBOOK SCOPES:", "N/A (Business Login)");
     console.log("FACEBOOK AUTH URL GENERADA:", authUrl);
     console.log("--------------------------------------------------------");
 
@@ -94,10 +95,9 @@ export class FacebookAuthService {
       const debugRes = await fetch(debugUrl);
       const debugInfo = await debugRes.json();
       console.log('--- FACEBOOK TOKEN DEBUG INFO ---');
-      console.log('app_id:', debugInfo.data?.app_id);
-      console.log('user_id:', debugInfo.data?.user_id);
-      console.log('granular_scopes:', debugInfo.data?.granular_scopes);
-      console.log('data_access_expiration_time:', debugInfo.data?.data_access_expiration_time);
+      
+      
+      
     } catch (e) {
       console.error('Error fetching debug_token:', e);
     }
@@ -106,8 +106,7 @@ export class FacebookAuthService {
       const accountsUrl = `https://graph.facebook.com/v22.0/me/accounts?access_token=${data.access_token}`;
       const accountsRes = await fetch(accountsUrl);
       const accountsData = await accountsRes.json();
-      console.log('--- /me/accounts RESPONSE (DIAGNOSTIC) ---');
-      console.log(JSON.stringify(accountsData, null, 2));
+      // Diagnostic accounts response removed for security
     } catch (e) {
       console.error('Error fetching /me/accounts:', e);
     }
@@ -132,7 +131,6 @@ export class FacebookAuthService {
   }
   async getFacebookAndInstagramAccounts(userToken: string) {
     console.log('---------------- [FACEBOOK GRAPH API DEBUG START] ----------------');
-    console.log('🔑 TOKEN RECIBIDO EN GET_ACCOUNTS:', userToken);
 
     // A. Consultar /me para ver el perfil del usuario autenticado
     const meUrl = `https://graph.facebook.com/v22.0/me?fields=id,name,email&access_token=${userToken}`;
@@ -140,7 +138,6 @@ export class FacebookAuthService {
     try {
       const meRes = await fetch(meUrl);
       const meData = await meRes.json();
-      console.log('👤 [FB DEBUG] RESPUESTA EXACTA /me:', JSON.stringify(meData, null, 2));
       if (meData.error) {
         console.error('❌ [FB DEBUG] ERROR EN /me:', JSON.stringify(meData.error, null, 2));
       }
@@ -159,7 +156,6 @@ export class FacebookAuthService {
     try {
       response = await fetch(pagesUrl);
       data = await response.json();
-      console.log('📄 [FB DEBUG] RESPUESTA EXACTA /me/accounts:', JSON.stringify(data, null, 2));
     } catch (e) {
       console.error('❌ [FB DEBUG] ERROR FATAL FETCHING /me/accounts:', e);
     }
@@ -210,7 +206,8 @@ export class FacebookAuthService {
   // ----------------------------------------------------------
   async publishInstagramPost(instagramId: string, accessToken: string, imageUrl: string, caption: string) {
     this.logger.log(`Iniciando publicación en Instagram ID: ${instagramId}`);
-    console.log("IG ACCESS TOKEN:", accessToken); // 🧪 LOG OBLIGATORIO SOLICITADO
+    console.log(`ACCOUNT SAVED: provider=[REDACTED], username=[REDACTED]`); 
+    console.log('IG ACCESS TOKEN: [REDACTED]'); // 🧪 LOG OBLIGATORIO SOLICITADO
     console.log("📸 CREATING INSTAGRAM CONTAINER...");
     console.log(`🖼️ IMAGE URL: ${imageUrl}`);
 
@@ -265,7 +262,7 @@ export class FacebookAuthService {
     const response = await fetch(url, { method: 'POST' });
     const data = await response.json();
 
-    console.log("FACEBOOK RESPONSE:", data); // 🧪 LOG OBLIGATORIO
+    console.log('FACEBOOK RESPONSE: [REDACTED]'); // 🧪 LOG OBLIGATORIO
 
     if (data.error) {
       console.error("❌ ERROR EN FACEBOOK API:", data.error);
