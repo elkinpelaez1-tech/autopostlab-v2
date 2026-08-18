@@ -273,6 +273,9 @@ export class TikTokAuthService {
       this.logger.log(`✅ Direct Post inicializado. Publish ID: ${response.data.data?.publish_id}`);
       return response.data.data; // Contiene publish_id y upload_url
     } catch (error: any) {
+      // Diagnostic output: print full error response from TikTok (if any)
+      console.log('--- TikTok Direct Post Init ERROR RESPONSE ---');
+      console.log(JSON.stringify(error.response?.data, null, 2));
       this.logTikTokError('post/publish/video/init', error);
       throw error;
     }
