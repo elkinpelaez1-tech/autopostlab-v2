@@ -170,6 +170,11 @@ export class FacebookAuthService {
     const accounts: any[] = [];
     if (data.data) {
       for (const page of data.data) {
+  // 🛠️ TEMP DIAGNOSTIC (no token shown)
+  console.log('🛠️ DIAG: page.id =', page.id);
+  console.log('🛠️ DIAG: page.name =', page.name);
+  console.log('🛠️ DIAG: page.instagram_business_account =', page.instagram_business_account ? JSON.stringify(page.instagram_business_account) : null);
+  console.log('🛠️ DIAG: page.access_token is', page.access_token ? 'PRESENT' : 'MISSING');
         // A. Agregar la Página de Facebook como cuenta independiente
         accounts.push({
           provider: 'FACEBOOK',
@@ -182,9 +187,10 @@ export class FacebookAuthService {
 
         // B. Si tiene Instagram vinculado, agregarlo también
         if (page.instagram_business_account) {
+          // Caso estándar: la cuenta Instagram ya viene incluida en la respuesta de /me/accounts
           const ig = page.instagram_business_account;
-          console.log(`📸 [IG DEBUG] DETECTADO INSTAGRAM: ${ig.username || ig.id} vinculado a página: ${page.name}`);
-          
+          console.log(`📸 [IG DEBUG] DETECTADO INSTAGRAM (directo): ${ig.username || ig.id} vinculado a página: ${page.name}`);
+
           accounts.push({
             provider: 'INSTAGRAM',
             providerAccountId: ig.id,
@@ -193,6 +199,31 @@ export class FacebookAuthService {
             avatarUrl: ig.profile_picture_url || null,
             accessToken: page.access_token, // 🔥 OBLIGATORIO: Usar Page Access Token para publicar en IG
           });
+        } else {
+          // Caso fallback: /me/accounts no devolvió instagram_business_account.
+          // Realizamos una consulta puntual a la página para intentar obtenerla.
+          const fallbackFields = 'instagram_business_account,connected_instagram_account';
+          const fallbackUrl = `https://graph.facebook.com/v19.0/${page.id}?fields=${fallbackFields}&access_token=${page.access_token}`;
+          try {
+            const fallbackRes = await fetch(fallbackUrl);
+            const fallbackData = await fallbackRes.json();
+
+            // Priorizar instagram_business_account; si no existe, usar connected_instagram_account
+            const igInfo = fallbackData.instagram_business_account || fallbackData.connected_instagram_account;
+            if (igInfo) {
+              console.log(`📸 [IG DEBUG] DETECTADO INSTAGRAM (fallback): ${igInfo.username || igInfo.id} vinculado a página: ${page.name}`);
+              accounts.push({
+                provider: 'INSTAGRAM',
+                providerAccountId: igInfo.id,
+                username: igInfo.username || `ig_${igInfo.id}`,
+                displayName: igInfo.name || igInfo.username || page.name,
+                avatarUrl: igInfo.profile_picture_url || null,
+                accessToken: page.access_token, // reutilizamos el mismo Page Access Token
+              });
+            }
+          } catch (e) {
+            this.logger.error(`❌ [IG FALLBACK] Error consultando Instagram para la página ${page.id}:`, e);
+          }
         }
       }
     }
