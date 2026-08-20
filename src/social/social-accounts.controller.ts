@@ -64,9 +64,11 @@ export class SocialAccountsController {
 
   // Detectar y vincular cuentas de Instagram Business de las páginas conectadas
   @Post('detect-instagram')
-  detectInstagram(@Req() req: any) {
+  async detectInstagram(@Req() req: any) {
     const workspaceId = req.user.workspaceId;
     const organizationId = req.organizationId;
-    return this.socialAccountsService.detectAndLinkInstagramAccounts(workspaceId, organizationId);
+    const result = await this.socialAccountsService.detectAndLinkInstagramAccounts(workspaceId, organizationId);
+    const created = result.accounts?.length ?? 0;
+    return { message: `Se vincularon ${created} cuentas de Instagram`, created };
   }
 }
