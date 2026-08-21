@@ -220,12 +220,25 @@ export class FacebookAuthService {
     console.log(`🖼️ IMAGE URL: ${imageUrl}`);
 
     // Paso 1: Crear el contenedor de media
+    // 🧪 DIAGNÓSTICO TEMPORAL (sin exponer accessToken): endpoint y parámetros usados
+    console.log("🧪 [IG DIAG] Endpoint: POST /{instagram-user-id}/media (Graph API v22.0)");
+    console.log("🧪 [IG DIAG] instagramId (providerAccountId) usado:", instagramId);
+    console.log("🧪 [IG DIAG] Parámetros: image_url, caption, access_token=[REDACTED]");
     const containerUrl = `https://graph.facebook.com/v22.0/${instagramId}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(caption)}&access_token=${accessToken}`;
     const containerRes = await fetch(containerUrl, { method: 'POST' });
     const containerData = await containerRes.json();
+    console.log("🧪 [IG DIAG] HTTP status:", containerRes.status);
 
     if (containerData.error) {
-      console.error("❌ ERROR CREATING IG CONTAINER:", containerData.error);
+      const e = containerData.error;
+      console.error("❌ [IG DIAG] ERROR CREATING IG CONTAINER (detalle completo de Meta):", JSON.stringify({
+        httpStatus: containerRes.status,
+        code: e.code,
+        type: e.type,
+        message: e.message,
+        error_subcode: e.error_subcode,
+        fbtrace_id: e.fbtrace_id,
+      }, null, 2));
       throw new Error(`Error creando contenedor: ${containerData.error.message}`);
     }
 
