@@ -288,14 +288,14 @@ const Billing: React.FC = () => {
             </div>
           )}
           <h3 className="plan-title-premium">Gratis</h3>
-          <p className="plan-desc-premium">Ideal para empezar a organizar tu contenido de manera sencilla.</p>
+          <p className="plan-desc-premium">Para comenzar a gestionar tus redes sociales.</p>
           <div className="plan-price-premium">$0 <span>/ mes</span></div>
           
           <ul className="features-list-premium">
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> 1 Cuenta Social</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> 10 Publicaciones mensuales</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Calendario Básico</li>
-            <li className="feature-item-premium" style={{ color: '#9ca3af', textDecoration: 'line-through' }}><CheckCircle2 size={18} color="#d1d5db" /> Analytics Avanzado</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> 1 usuario</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> 1 cuenta social</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> 5 publicaciones mensuales</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Dashboard básico</li>
           </ul>
 
           <button 
@@ -317,17 +317,18 @@ const Billing: React.FC = () => {
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 className="plan-title-premium">PRO</h3>
+            <h3 className="plan-title-premium">Pro</h3>
             <Zap size={24} color="#ffffff" />
           </div>
-          <p className="plan-desc-premium">Para creadores de contenido serios y profesionales de marketing.</p>
-          <div className="plan-price-premium">$79.000 <span>/ mes</span></div>
+          <p className="plan-desc-premium">Ideal para profesionales y marcas en crecimiento.</p>
+          <div className="plan-price-premium">$45.000 <span>/ mes</span></div>
           
           <ul className="features-list-premium">
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Cuentas Sociales Ilimitadas</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Publicaciones Ilimitadas</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Analytics Avanzado</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Soporte Prioritario</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> 2 usuarios</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> 4 cuentas sociales</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Publicaciones ilimitadas</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Métricas avanzadas</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Soporte prioritario</li>
           </ul>
 
           <button 
@@ -335,7 +336,7 @@ const Billing: React.FC = () => {
             disabled={plan === 'PRO' || isUpgrading}
             className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
           >
-            {isUpgrading ? 'Cargando...' : (plan === 'PRO' ? 'Plan Activo' : 'Upgrade a PRO')}
+            {isUpgrading ? 'Cargando...' : (plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro')}
           </button>
         </div>
 
@@ -347,17 +348,20 @@ const Billing: React.FC = () => {
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 className="plan-title-premium">Agencia</h3>
+            <h3 className="plan-title-premium">Agency</h3>
             <Building2 size={24} color="#6b7280" />
           </div>
-          <p className="plan-desc-premium">Para equipos, marcas en expansión y agencias de marketing.</p>
-          <div className="plan-price-premium">$249.000 <span>/ mes</span></div>
+          <p className="plan-desc-premium">Para agencias y equipos que necesitan máxima capacidad.</p>
+          <div className="plan-price-premium">$105.000 <span>/ mes</span></div>
           
           <ul className="features-list-premium">
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Todo lo de PRO</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Múltiples Workspaces</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Roles y Permisos de Equipo</li>
-            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Marca Blanca (Whitelabel)</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Multiusuario</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> 4 cuentas sociales</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Publicaciones ilimitadas</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Métricas avanzadas</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Soporte prioritario</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> API / integraciones</li>
+            <li className="feature-item-premium"><CheckCircle2 size={18} color="#10b981" /> Soporte dedicado 24/7</li>
           </ul>
 
           <button 
@@ -366,7 +370,7 @@ const Billing: React.FC = () => {
             className={`plan-btn-premium ${plan === 'AGENCY' ? 'active-btn' : ''}`}
             style={{ borderColor: '#111827', color: '#111827' }}
           >
-             {isUpgrading ? 'Cargando...' : (plan === 'AGENCY' ? 'Plan Activo' : 'Upgrade a Agencia')}
+              {isUpgrading ? 'Cargando...' : (plan === 'AGENCY' ? 'Plan Activo' : 'Elegir Agency')}
           </button>
         </div>
 
