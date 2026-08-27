@@ -332,11 +332,15 @@ const Billing: React.FC = () => {
           </ul>
 
           <button 
-            onClick={() => handleUpgradeClick('PRO')}
-            disabled={plan === 'PRO' || isUpgrading}
+            onClick={() => {
+              if (plan !== 'PRO') {
+                window.location.href = 'https://checkout.wompi.co/l/7hppvj';
+              }
+            }}
+            disabled={plan === 'PRO'}
             className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
           >
-            {isUpgrading ? 'Cargando...' : (plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro')}
+            {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
           </button>
         </div>
 
