@@ -13,13 +13,6 @@ const [showProModal, setShowProModal] = useState(false);
 
 
 
-
-
-
-
-
-
-  // Fallback seguro si user no está listo
   const plan = user?.plan || 'FREE';
   const expiresAt = user?.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString() : null;
   const isExpired = user?.plan === 'FREE' && user?.hadPro;
@@ -222,24 +215,31 @@ const [showProModal, setShowProModal] = useState(false);
         }
 
         /* ---------- Improved Pro Modal Styles ---------- */
-        .pro-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.6);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 2000;
-        }
+          .pro-modal-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+          }
 
-        .pro-modal-card {
-          background: #fff;
-          border-radius: 16px;
-          max-width: 560px;
-          width: 90%;
-          padding: 2rem;
-          box-shadow: 0 12px 30px rgba(0,0,0,0.15);
-        }
+          .pro-modal-overlay .pro-modal-card {
+            width: min(560px, calc(100vw - 32px)) !important;
+            max-width: 560px !important;
+            box-sizing: border-box;
+            background: #ffffff;
+            color: #111827;
+            padding: 24px;
+            border-radius: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+          }
+
         .pro-modal-header {
           text-align: center;
           margin-bottom: 1.5rem;
@@ -254,8 +254,15 @@ const [showProModal, setShowProModal] = useState(false);
           color: #111827;
         }
         .pro-modal-section {
-          margin-bottom: 1.5rem;
+          margin-bottom: 16px;
         }
+                  .pro-modal-overlay .pro-modal-card p { color: #374151; }
+          .pro-modal-overlay .pro-modal-card h2,
+          .pro-modal-overlay .pro-modal-card h4 { color: #111827; }
+          .pro-modal-overlay .pro-modal-card .steps-list li { color: #374151; }
+          .pro-modal-overlay .pro-modal-card .steps-list li strong { color: #111827; }
+
+
         .bank-card {
           background: #c62828; /* Davivienda red */
           color: #fff;
@@ -296,6 +303,7 @@ const [showProModal, setShowProModal] = useState(false);
         }
         .breb-section {
           background: #f9fafb;
+          color: #374151;
           border-left: 4px solid #c62828;
           padding: 1rem;
           border-radius: 8px;
@@ -432,8 +440,7 @@ const [showProModal, setShowProModal] = useState(false);
               }
             }}
             disabled={plan === 'PRO'}
-            className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
-          >
+            className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}>
             {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
           </button>
 {showProModal && (
