@@ -7,6 +7,29 @@ const Billing: React.FC = () => {
   const { user } = useAuth();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+const [showProModal, setShowProModal] = useState(false);
+
+
+
+
+
+  borderRadius: '12px',
+  padding: '2rem',
+  maxWidth: '500px',
+  width: '90%',
+  boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+};
+const buttonStyle: React.CSSProperties = {
+  marginTop: '1.5rem',
+  width: '100%',
+  padding: '0.8rem',
+  background: '#3b82f6',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  fontWeight: 600,
+};
 
   // Fallback seguro si user no está listo
   const plan = user?.plan || 'FREE';
@@ -209,6 +232,89 @@ const Billing: React.FC = () => {
           transform: none;
           box-shadow: none;
         }
+
+        /* ---------- Improved Pro Modal Styles ---------- */
+        .pro-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 2000;
+        }
+
+        .pro-modal-card {
+          background: #fff;
+          border-radius: 16px;
+          max-width: 560px;
+          width: 90%;
+          padding: 2rem;
+          box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+        .pro-modal-header {
+          text-align: center;
+          margin-bottom: 1.5rem;
+        }
+        .pro-modal-header img {
+          max-width: 120px;
+          margin-bottom: 0.5rem;
+        }
+        .pro-modal-title {
+          font-size: 1.8rem;
+          font-weight: 700;
+          color: #111827;
+        }
+        .pro-modal-section {
+          margin-bottom: 1.5rem;
+        }
+        .bank-card {
+          background: #c62828; /* Davivienda red */
+          color: #fff;
+          border-radius: 12px;
+          padding: 1.2rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.6rem;
+        }
+        .bank-card strong {
+          color: #fff;
+        }
+        .steps-list {
+          counter-reset: step;
+          list-style: none;
+          padding-left: 0;
+        }
+        .steps-list li {
+          margin-bottom: 1rem;
+          padding-left: 2rem;
+          position: relative;
+        }
+        .steps-list li::before {
+          counter-increment: step;
+          content: counter(step);
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1.5rem;
+          height: 1.5rem;
+          background: #3b82f6;
+          color: #fff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+        }
+        .breb-section {
+          background: #f9fafb;
+          border-left: 4px solid #c62828;
+          padding: 1rem;
+          border-radius: 8px;
+        }
+        .breb-section strong {
+          color: #c62828;
+        }
       `}</style>
 
       <div className="pricing-header-premium">
@@ -331,10 +437,10 @@ const Billing: React.FC = () => {
             <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Soporte prioritario</li>
           </ul>
 
-          <button 
+          <button
             onClick={() => {
               if (plan !== 'PRO') {
-                window.location.href = 'https://checkout.wompi.co/l/7hppvj';
+                setShowProModal(true);
               }
             }}
             disabled={plan === 'PRO'}
@@ -342,6 +448,46 @@ const Billing: React.FC = () => {
           >
             {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
           </button>
+{showProModal && (
+  <div className="pro-modal-overlay" onClick={() => setShowProModal(false)}>
+  <div className="pro-modal-card" onClick={e => e.stopPropagation()}>
+    <div className="pro-modal-header">
+      <img src="/logo.png" alt="AutoPostLab logo" />
+      <h2 className="pro-modal-title">Activa tu Plan Pro</h2>
+    </div>
+    <p className="pro-modal-section">
+      Realiza el pago por transferencia a la cuenta de Davivienda y comienza a disfrutar de todas las funciones de AutoPostLab.
+    </p>
+    <div className="bank-card">
+      <strong>DAVIVIENDA</strong>
+      <p><strong>Tipo de cuenta:</strong> Cuenta de Ahorros</p>
+      <p><strong>Número de cuenta:</strong> 037470250590</p>
+      <p><strong>A nombre de:</strong> ELKIN PELAEZ</p>
+    </div>
+      <p className="pro-modal-section">
+        Una vez realices el pago, envíanos el comprobante para activar tu cuenta.
+      </p>
+    <h4 className="pro-modal-section">¿Cómo activar tu plan?</h4>
+    <ol className="steps-list">
+      <li><strong>Realiza la transferencia</strong><br/>Desde tu app de Davivienda a la cuenta de ahorros.</li>
+      <li><strong>Envía tu comprobante</strong><br/>Al correo elkinpelaez1@gmail.com</li>
+      <li><strong>¡Listo!</strong><br/>Te activaremos tu Plan Pro en el menor tiempo posible.</li>
+    </ol>
+    <p className="pro-modal-section">
+      Normalmente la activación se realiza en menos de 1 hora.
+    </p>
+    <div className="breb-section">
+      También puedes Transferir a través de <strong>@PLATA3117287366</strong>
+    </div>
+    <button className="plan-btn-premium primary" onClick={() => setShowProModal(false)}>
+      Entendido, realizaré el pago
+    </button>
+  </div>
+</div>
+      
+
+  
+)}
         </div>
 
         {/* PLAN AGENCY */}
