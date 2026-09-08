@@ -13,17 +13,17 @@ const [showProModal, setShowProModal] = useState(false);
 
 
 
-  borderRadius: '12px',
-  padding: '2rem',
-  maxWidth: '500px',
-  width: '90%',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-};
-const buttonStyle: React.CSSProperties = {
-  marginTop: '1.5rem',
-  width: '100%',
-  padding: '0.8rem',
-  background: '#3b82f6',
+
+
+
+
+
+
+
+
+
+
+
   color: '#fff',
   border: 'none',
   borderRadius: '8px',
