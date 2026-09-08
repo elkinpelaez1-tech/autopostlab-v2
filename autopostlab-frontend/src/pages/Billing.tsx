@@ -19,18 +19,6 @@ const [showProModal, setShowProModal] = useState(false);
 
 
 
-
-
-
-
-
-  color: '#fff',
-  border: 'none',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  fontWeight: 600,
-};
-
   // Fallback seguro si user no está listo
   const plan = user?.plan || 'FREE';
   const expiresAt = user?.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString() : null;
