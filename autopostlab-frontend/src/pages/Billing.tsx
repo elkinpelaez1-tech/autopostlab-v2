@@ -54,7 +54,7 @@ const [showProModal, setShowProModal] = useState(false);
         }
         .pricing-grid-premium {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 2rem;
           align-items: stretch;
           margin-top: 1rem;
@@ -278,6 +278,9 @@ const [showProModal, setShowProModal] = useState(false);
         .bank-card strong {
           color: #fff;
         }
+        .pro-modal-overlay .pro-modal-card .bank-card p {
+          color: #fff;
+        }
         .steps-list {
           counter-reset: step;
           list-style: none;
@@ -447,8 +450,6 @@ const [showProModal, setShowProModal] = useState(false);
             >
               {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
             </button>
-          </div> {/* close pricing-grid-premium */}
-        </div> {/* close settings-container */}
 {showProModal && createPortal(
   <div className="pro-modal-overlay" onClick={() => setShowProModal(false)}>
   <div className="pro-modal-card" onClick={e => e.stopPropagation()}>
@@ -524,9 +525,8 @@ const [showProModal, setShowProModal] = useState(false);
               {isUpgrading ? 'Cargando...' : (plan === 'AGENCY' ? 'Plan Activo' : 'Elegir Agency')}
           </button>
         </div>
-
-      
-    
+      </div>
+    </div>
   </>
 );
 };
