@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { CreditCard, CheckCircle2, Zap, Building2, AlertCircle } from 'lucide-react';
 import api from '../services/api';
@@ -44,7 +45,7 @@ const [showProModal, setShowProModal] = useState(false);
     }
   };
 
-  return (
+  return ( <> 
     <div className="settings-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
       {/* Estilos CSS Embebidos Premium */}
       <style>{`
@@ -214,12 +215,14 @@ const [showProModal, setShowProModal] = useState(false);
           box-shadow: none;
         }
 
-        .pro-modal-overlay {
+.pro-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
@@ -433,17 +436,20 @@ const [showProModal, setShowProModal] = useState(false);
             <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Soporte prioritario</li>
           </ul>
 
-          <button
-            onClick={() => {
-              if (plan !== 'PRO') {
-                setShowProModal(true);
-              }
-            }}
-            disabled={plan === 'PRO'}
-            className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}>
-            {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
-          </button>
-{showProModal && (
+            <button
+              onClick={() => {
+                if (plan !== 'PRO') {
+                  setShowProModal(true);
+                }
+              }}
+              disabled={plan === 'PRO'}
+              className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
+            >
+              {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
+            </button>
+          </div> {/* close pricing-grid-premium */}
+        </div> {/* close settings-container */}
+{showProModal && createPortal(
   <div className="pro-modal-overlay" onClick={() => setShowProModal(false)}>
   <div className="pro-modal-card" onClick={e => e.stopPropagation()}>
     <div className="pro-modal-header">
@@ -479,10 +485,10 @@ const [showProModal, setShowProModal] = useState(false);
     </button>
   </div>
 </div>
-      
 
-  
-)}
+
+
+, document.body)}
         </div>
 
         {/* PLAN AGENCY */}
@@ -519,9 +525,10 @@ const [showProModal, setShowProModal] = useState(false);
           </button>
         </div>
 
-      </div>
-    </div>
-  );
+      
+    
+  </>
+);
 };
 
 export default Billing;
