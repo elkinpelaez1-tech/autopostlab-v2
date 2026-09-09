@@ -479,7 +479,7 @@ const [showProModal, setShowProModal] = useState(false);
       Normalmente la activación se realiza en menos de 1 hora.
     </p>
     <div className="breb-section">
-      También puedes Transferir a través de <strong>@PLATA3117287366</strong>
+      También puedes transferir a través de DAVIPLATA, <strong>@PLATA3117287366</strong>
     </div>
     <button className="plan-btn-premium primary" onClick={() => setShowProModal(false)}>
       Entendido, realizaré el pago
