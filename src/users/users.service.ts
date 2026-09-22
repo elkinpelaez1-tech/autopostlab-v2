@@ -1,12 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
+  private readonly logger = new Logger(UsersService.name);
+
+  // -------------------------------------------------------
+  // 🛡️ HABILITACIÓN ADMINISTRATIVA MANUAL (PUNTUAL)
+  // Usuario: humberto856247@hotmail.com | Periodo: 22/09/2026 -> 22/10/2026
+  // -------------------------------------------------------
+  private readonly MANUAL_PRO_EMAIL = 'humberto856247@hotmail.com';
+  private readonly MANUAL_PRO_EXPIRATION = new Date('2026-10-22T23:59:59.999Z');
+
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.applyManualProAccess();
+  }
+
+  private async applyManualProAccess() {
+    try {
+      const now = new Date();
+      if (now <= this.MANUAL_PRO_EXPIRATION) {
+        const user = await this.prisma.user.findFirst({
+          where: { email: { equals: this.MANUAL_PRO_EMAIL, mode: 'insensitive' } },
+          include: { organization: true },
+        });
+
+        if (user?.organization && (user.organization.plan !== 'PRO' || !user.organization.planExpiresAt)) {
+          await this.prisma.organization.update({
+            where: { id: user.organization.id },
+            data: {
+              plan: 'PRO',
+              planExpiresAt: this.MANUAL_PRO_EXPIRATION,
+              hadPro: true,
+            },
+          });
+          this.logger.log(`[MANUAL PRO] Acceso PRO aplicado a ${this.MANUAL_PRO_EMAIL} hasta ${this.MANUAL_PRO_EXPIRATION.toISOString()}`);
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`[MANUAL PRO] Verificación inicial no completada: ${error.message}`);
+    }
+  }
 
   // -------------------------------------------------------
   // 🔍 Buscar usuario por email (Login)
@@ -54,6 +93,24 @@ export class UsersService {
     });
 
     if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    // Validación puntual para humberto856247@hotmail.com
+    if (user.email?.toLowerCase() === this.MANUAL_PRO_EMAIL && user.organization) {
+      const now = new Date();
+      if (now <= this.MANUAL_PRO_EXPIRATION) {
+        if (user.organization.plan !== 'PRO' || !user.organization.planExpiresAt) {
+          const updatedOrg = await this.prisma.organization.update({
+            where: { id: user.organization.id },
+            data: {
+              plan: 'PRO',
+              planExpiresAt: this.MANUAL_PRO_EXPIRATION,
+              hadPro: true,
+            },
+          });
+          user.organization = updatedOrg;
+        }
+      }
+    }
 
     return user;
   }
