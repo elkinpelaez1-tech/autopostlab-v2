@@ -78,7 +78,13 @@ export class FacebookAuthService {
     appSecret = appSecret.trim().replace(/^["']|["']$/g, '');
     redirectUri = redirectUri.trim().replace(/^["']|["']$/g, '');
 
-    const url = `https://graph.facebook.com/v22.0/oauth/access_token?client_id=${appId}&redirect_uri=${redirectUri}&client_secret=${appSecret}&code=${code}`;
+    const params = new URLSearchParams({
+      client_id: appId,
+      redirect_uri: redirectUri,
+      client_secret: appSecret,
+      code: code,
+    });
+    const url = `https://graph.facebook.com/v22.0/oauth/access_token?${params.toString()}`;
 
     const response = await fetch(url);
     const data = await response.json();
@@ -88,29 +94,22 @@ export class FacebookAuthService {
       throw new Error(data.error.message);
     }
 
-    // ---------- TEMP DIAGNOSTIC LOGS (safe) ----------
-    try {
-      const appAccessToken = `${appId}|${appSecret}`;
-      const debugUrl = `https://graph.facebook.com/v22.0/debug_token?input_token=${data.access_token}&access_token=${appAccessToken}`;
-      const debugRes = await fetch(debugUrl);
-      const debugInfo = await debugRes.json();
-      console.log('--- FACEBOOK TOKEN DEBUG INFO ---');
-      
-      
-      
-    } catch (e) {
-      console.error('Error fetching debug_token:', e);
-    }
 
-    try {
-      const accountsUrl = `https://graph.facebook.com/v22.0/me/accounts?access_token=${data.access_token}`;
-      const accountsRes = await fetch(accountsUrl);
-      const accountsData = await accountsRes.json();
-      // Diagnostic accounts response removed for security
-    } catch (e) {
-      console.error('Error fetching /me/accounts:', e);
-    }
-    // ---------------------------------------------------
+
+
+
+
+
+
+      
+      
+      
+
+
+
+
+
+
 
     return data.access_token;
   }
