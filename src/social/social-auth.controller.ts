@@ -1,4 +1,6 @@
 import { Controller, Get, Post, Body, Query, Res, Req, InternalServerErrorException, NotFoundException, Logger } from '@nestjs/common';
+import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { FacebookAuthService } from './facebook-auth.service';
 import { LinkedinAuthService } from './linkedin-auth.service';
 import { TikTokAuthService } from './tiktok-auth.service';
@@ -11,6 +13,30 @@ import type { Response } from 'express';
 export class SocialAuthController {
   private readonly logger = new Logger(SocialAuthController.name);
 
+  /**
+   * In-process cache to track used OAuth state signatures and protect against replay attacks.
+   * NOTE: This in-memory cache is local to the current Node.js process. It does not provide
+   * distributed protection across multiple cluster instances or serverless replicas, nor does
+   * it survive server restarts. For multi-instance production environments, an external shared
+   * store such as Redis or a database table should be used.
+   */
+  public static readonly usedSignaturesCache = new Map<string, number>();
+  public static readonly STATE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  public static readonly MAX_CLOCK_SKEW_MS = 60 * 1000; // 1 minute allowed into future
+
+  public static cleanupExpiredStates(): void {
+    const now = Date.now();
+    for (const [sig, timestamp] of SocialAuthController.usedSignaturesCache.entries()) {
+      if (now - timestamp > SocialAuthController.STATE_TTL_MS) {
+        SocialAuthController.usedSignaturesCache.delete(sig);
+      }
+    }
+  }
+
+  public static resetStateCache(): void {
+    SocialAuthController.usedSignaturesCache.clear();
+  }
+
   constructor(
     private readonly facebookAuthService: FacebookAuthService,
     private readonly linkedinAuthService: LinkedinAuthService,
@@ -18,9 +44,9 @@ export class SocialAuthController {
     private readonly socialAccountsService: SocialAccountsService,
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {
     this.logger.log('SOCIAL AUTH CONTROLLER LOADED');
-    console.log('SOCIAL AUTH CONTROLLER LOADED');
   }
 
   // Diagnostic route
@@ -69,64 +95,146 @@ export class SocialAuthController {
     @Query() query: any,
     @Res() res: Response,
   ) {
-    console.log('🔥 FACEBOOK CALLBACK HIT');
-    console.log('QUERY:', query);
-    console.log('CODE:', code);
-    console.log('STATE:', workspaceId);
+    this.logger.debug('Facebook callback hit');
 
     const frontendUrl = process.env.FRONTEND_URL || 'https://autopostlab.me';
+    // Verify signed state when test mode is active
+    const testMode = this.configService.get<string>('FB_OAUTH_TEST_MODE') === 'standard';
+    if (testMode) {
+      if (!workspaceId || typeof workspaceId !== 'string') {
+        this.logger.warn('State missing or invalid in test mode');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_state`);
+      }
+
+      const parts = workspaceId.split(':');
+      if (parts.length !== 3) {
+        this.logger.warn('Invalid state format in test mode (expected exactly 3 parts)');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_state`);
+      }
+
+      const [rawWorkspaceId, timestampStr, providedSignature] = parts;
+      if (!rawWorkspaceId || !timestampStr || !providedSignature) {
+        this.logger.warn('State contains empty parts in test mode');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_state`);
+      }
+
+      // 1. Validate workspaceId format: /^[A-Za-z0-9_-]{1,64}$/
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(rawWorkspaceId)) {
+        this.logger.warn('Invalid workspaceId format in state');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_workspace_id`);
+      }
+
+      // 2. Validate signature format: exactly 64 hex characters
+      if (!/^[a-f0-9]{64}$/i.test(providedSignature)) {
+        this.logger.warn('State signature malformed (not 64-char hex)');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_state_signature_format`);
+      }
+
+      // 3. Verify secret presence
+      const secret = this.configService.get<string>('FB_OAUTH_STATE_SECRET');
+      if (!secret) {
+        this.logger.error('Missing FB_OAUTH_STATE_SECRET in test mode');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=missing_state_secret`);
+      }
+
+      // 4. Verify HMAC signature before timestamp expiration logic
+      const expectedSignature = crypto.createHmac('sha256', secret).update(`${rawWorkspaceId}:${timestampStr}`).digest('hex');
+      const providedBuf = Buffer.from(providedSignature, 'hex');
+      const expectedBuf = Buffer.from(expectedSignature, 'hex');
+      if (providedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(providedBuf, expectedBuf)) {
+        this.logger.warn('State signature mismatch');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_state_signature`);
+      }
+
+      // 5. Validate timestamp & expiration
+      const stateTimestamp = Number(timestampStr);
+      if (!Number.isInteger(stateTimestamp) || stateTimestamp <= 0) {
+        this.logger.warn('State timestamp is not a valid integer');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=state_expired`);
+      }
+
+      const now = Date.now();
+      const age = now - stateTimestamp;
+      if (age > SocialAuthController.STATE_TTL_MS) {
+        this.logger.warn(`State expired: age ${age}ms exceeds TTL of ${SocialAuthController.STATE_TTL_MS}ms`);
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=state_expired`);
+      }
+      if (stateTimestamp - now > SocialAuthController.MAX_CLOCK_SKEW_MS) {
+        this.logger.warn(`State timestamp is too far in future: ${stateTimestamp - now}ms`);
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=state_expired`);
+      }
+
+      // 6. Check replay protection & register state as used immediately
+      SocialAuthController.cleanupExpiredStates();
+      if (SocialAuthController.usedSignaturesCache.has(providedSignature)) {
+        this.logger.warn('State already used (replay attack detected)');
+        return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=invalid_state_reused`);
+      }
+
+      // Atomically mark signature as used in process cache before token exchange or DB access
+      SocialAuthController.usedSignaturesCache.set(providedSignature, now);
+
+      // Use the verified workspaceId for subsequent processing
+      workspaceId = rawWorkspaceId;
+    }
 
     if (!code) {
-      console.log('❌ NO CODE RECEIVED:', query);
+      this.logger.warn('No code received in Facebook callback');
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=no_code_received`);
     }
 
     try {
-      console.log('STEP 1: code recibido: [REDACTED]');
       this.logger.log(`Procesando callback de Facebook para workspace: ${workspaceId}`);
 
       // A. Intercambiar código por token de usuario
-      console.log('STEP 2: intercambiando token...');
       const userToken = await this.facebookAuthService.exchangeCodeForToken(code);
-      console.log('STEP 3: access_token obtenido: [REDACTED]');
 
       // B. Obtener token de larga duración
-      console.log('STEP 4: obteniendo token de larga duración...');
       const longLivedToken = await this.facebookAuthService.getLongLivedToken(userToken);
-      console.log('STEP 5: long_lived_token obtenido: [REDACTED]');
 
       // C. Listar cuentas (Facebook Pages + Instagram Business)
-      console.log('STEP 6: llamando /me/accounts...');
       const allAccounts = await this.facebookAuthService.getFacebookAndInstagramAccounts(longLivedToken);
-      console.log('STEP 7: cuentas encontradas:', allAccounts.length);
+      this.logger.debug(`Cuentas encontradas: ${allAccounts.length}`);
 
       if (allAccounts.length === 0) {
-        console.log('ANTES DE REDIRECT DE NO ACCOUNTS');
+        this.logger.warn(
+          `[FB CALLBACK] No se encontraron cuentas asociadas en Facebook/Instagram: workspaceId=${workspaceId}, reason=no_accounts_found`,
+        );
         return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=no_accounts_found`);
       }
 
-      // D. Guardar todas las cuentas encontradas (Upsert interno)
+      // D. Guardar todas las cuentas encontradas evitando duplicados (Upsert interno)
+      const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } });
+      const organizationId = workspace?.owner?.organizationId || '';
+      const seenCallbackKeys = new Set<string>();
       for (const account of allAccounts) {
-        this.logger.log(`Guardando/Actualizando cuenta ${account.provider}: ${account.username}`);
-        console.log(`STEP 8: guardando cuenta ${account.username} en BD...`);
-        const savedAccount = await this.socialAccountsService.create({
+        const accountKey = `${account.provider}:${account.providerAccountId}`;
+        if (seenCallbackKeys.has(accountKey)) {
+          continue;
+        }
+        seenCallbackKeys.add(accountKey);
+        this.logger.log(`[FB CALLBACK] Guardando/Actualizando cuenta: workspaceId=${workspaceId}, organizationId=${organizationId}, provider=${account.provider}, providerAccountId=${account.providerAccountId}, username=${account.username}`);
+        await this.socialAccountsService.create({
           provider: account.provider,
           providerAccountId: account.providerAccountId,
           username: account.username,
           displayName: account.displayName,
           avatarUrl: account.avatarUrl,
           accessToken: account.accessToken,
-        }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
-        console.log(`ACCOUNT SAVED: provider=${savedAccount.provider}, username=${savedAccount.username}`);
+        }, workspaceId, organizationId);
       }
 
       // E. Redirigir de vuelta al Frontend
-      console.log('ANTES DEL REDIRECT FINAL');
       return res.redirect(`${frontendUrl}/dashboard/social-accounts?success_connection=true`);
-    } catch (error) {
-      console.error('❌ ERROR FATAL EN CALLBACK FACEBOOK:', error);
-      this.logger.error('Error en callback de Facebook:', error);
-      return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=${encodeURIComponent(error.message)}`);
+    } catch (error: any) {
+      const safeErrorMsg = (error?.message || 'Unknown error').replace(
+        /access_token=[^&\s]+/gi,
+        'access_token=[REDACTED]',
+      );
+      this.logger.error(
+        `[FB CALLBACK] Error en callback de Facebook: workspaceId=${workspaceId}, reason=callback_exception, message="${safeErrorMsg}"`,
+      );
+      return res.redirect(`${frontendUrl}/dashboard/social-accounts?error=facebook_connection_failed`);
     }
   }
 
@@ -138,7 +246,6 @@ export class SocialAuthController {
     }
     this.logger.log(`Iniciando auth de LinkedIn para workspace: ${workspaceId}`);
     const url = this.linkedinAuthService.getAuthorizationUrl(workspaceId);
-    console.log('AUTH URL:', url);
     return res.redirect(url);
   }
 
@@ -147,9 +254,7 @@ export class SocialAuthController {
   async linkedinCallback(@Req() req, @Res() res: Response) {
     const { code, state: workspaceId } = req.query;
 
-    console.log("🔥 LINKEDIN CALLBACK HIT");
-    console.log("CODE:", code);
-    console.log("WORKSPACE_ID (from state):", workspaceId);
+    this.logger.debug('LinkedIn callback hit');
 
     if (!code) {
       this.logger.error('No se recibió código de LinkedIn');
@@ -166,11 +271,10 @@ export class SocialAuthController {
     try {
       // 1. Intercambio de code por token
       const accessToken = await this.linkedinAuthService.exchangeCodeForToken(code);
-      console.log("✅ LINKEDIN ACCESS TOKEN:", accessToken);
 
       // 2. Obtener información del usuario
       const userData = await this.linkedinAuthService.getUserProfile(accessToken);
-      console.log("👤 LINKEDIN USER:", userData);
+      this.logger.debug('Perfil de LinkedIn obtenido', { id: userData?.id });
 
       // 3. Guardar en Base de Datos (Upsert)
       await this.socialAccountsService.create({
@@ -223,6 +327,8 @@ export class SocialAuthController {
         return { success: false, message: 'No se encontraron cuentas vinculadas.' };
       }
 
+      const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } });
+      const organizationId = workspace?.owner?.organizationId || '';
       const results: any[] = [];
       for (const account of allAccounts) {
         const acc = await this.socialAccountsService.create({
@@ -232,7 +338,7 @@ export class SocialAuthController {
           displayName: account.displayName,
           avatarUrl: account.avatarUrl,
           accessToken: account.accessToken,
-        }, workspaceId, (await this.prisma.workspace.findUnique({ where: { id: workspaceId }, include: { owner: true } }))?.owner?.organizationId || '');
+        }, workspaceId, organizationId);
         results.push(acc);
       }
 
@@ -355,7 +461,6 @@ export class SocialAuthController {
   @Get('google')
   async googleAuth(@Query('workspaceId') workspaceId: string, @Res() res: Response) {
     this.logger.log(`Iniciando auth de Google para workspace: ${workspaceId || 'Login'}`);
-    console.log('GOOGLE ROUTE HIT');
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://autopostlab.me/api/social-auth/callback/google";
 
@@ -405,7 +510,7 @@ export class SocialAuthController {
       const tokens: any = await tokenResponse.json();
 
       if (tokens.error) {
-        this.logger.error('Error intercambiando código de Google:', tokens.error_description || tokens.error);
+        this.logger.error(`Error intercambiando código de Google: ${tokens.error_description || tokens.error}`);
         throw new Error(tokens.error_description || tokens.error);
       }
 
@@ -417,14 +522,11 @@ export class SocialAuthController {
       // 3. Redirigir al frontend con los tokens de acceso
       const redirectUrl = `https://app.autopostlab.me/dashboard?token=${loginResult.accessToken}&refreshToken=${loginResult.refreshToken}`;
 
-      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo a https://app.autopostlab.me...`);
+      this.logger.log(`Login exitoso para ${loginResult.user.email}. Redirigiendo al dashboard...`);
       return res.redirect(redirectUrl);
 
-    } catch (error) {
-      console.error('GOOGLE CALLBACK FULL ERROR:', error);
-      console.error('GOOGLE CALLBACK STACK:', error?.stack);
-      console.error('GOOGLE CALLBACK MESSAGE:', error?.message);
-      console.error('GOOGLE CALLBACK RESPONSE:', JSON.stringify(error, null, 2));
+    } catch (error: any) {
+      this.logger.error(`Error en callback de Google: ${error?.message || 'Unknown error'}`);
       const frontendUrl = process.env.FRONTEND_URL || 'https://app.autopostlab.me';
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }

@@ -69,6 +69,11 @@ export class SocialAccountsController {
     const organizationId = req.organizationId;
     const result = await this.socialAccountsService.detectAndLinkInstagramAccounts(workspaceId, organizationId);
     const created = result.accounts?.length ?? 0;
-    return { message: `Se vincularon ${created} cuentas de Instagram`, created };
+    return {
+      message: result.message || `Se vincularon ${created} cuentas de Instagram`,
+      created,
+      reason: result.reason,
+      accounts: result.accounts ?? [],
+    };
   }
 }

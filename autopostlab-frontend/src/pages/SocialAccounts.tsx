@@ -84,10 +84,23 @@ const SocialAccounts: React.FC = () => {
           }
         });
         await fetchAccounts();
-        alert(response.data.message || 'Sincronización de Instagram completada con éxito.');
+        const createdCount = response.data?.created ?? response.data?.accounts?.length ?? 0;
+        const msg =
+          response.data?.message ||
+          (createdCount > 0
+            ? 'Sincronización de Instagram completada con éxito.'
+            : 'Primero debes conectar una página de Facebook activa antes de vincular Instagram.');
+        if (createdCount === 0 && response.data?.reason) {
+          setError(msg);
+        }
+        alert(msg);
       } catch (err: any) {
         console.error('Error detectando Instagram:', err);
-        alert(err.response?.data?.message || 'No se pudieron escanear las páginas conectadas de Facebook en busca de cuentas de Instagram Business.');
+        const errMsg =
+          err.response?.data?.message ||
+          'No se pudieron escanear las páginas conectadas de Facebook en busca de cuentas de Instagram Business.';
+        setError(errMsg);
+        alert(errMsg);
       } finally {
         setIsLoading(false);
       }
