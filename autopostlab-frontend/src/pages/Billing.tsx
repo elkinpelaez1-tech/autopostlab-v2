@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { CreditCard, CheckCircle2, Zap, Building2, AlertCircle } from 'lucide-react';
 import api from '../services/api';
@@ -8,11 +7,6 @@ const Billing: React.FC = () => {
   const { user } = useAuth();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-const [showProModal, setShowProModal] = useState(false);
-
-
-
-
 
   const plan = user?.plan || 'FREE';
   const expiresAt = user?.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString() : null;
@@ -214,109 +208,6 @@ const [showProModal, setShowProModal] = useState(false);
           transform: none;
           box-shadow: none;
         }
-
-.pro-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-          .pro-modal-overlay .pro-modal-card {
-            width: min(560px, calc(100vw - 32px)) !important;
-            max-width: 560px !important;
-            box-sizing: border-box;
-            background: #ffffff;
-            color: #111827;
-            padding: 24px;
-            border-radius: 24px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-          }
-
-        .pro-modal-header {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .pro-modal-header img {
-          max-width: 120px;
-          margin-bottom: 0.5rem;
-        }
-        .pro-modal-title {
-          font-size: 1.8rem;
-          font-weight: 700;
-          color: #111827;
-        }
-        .pro-modal-section {
-          margin-bottom: 16px;
-        }
-                  .pro-modal-overlay .pro-modal-card p { color: #374151; }
-          .pro-modal-overlay .pro-modal-card h2,
-          .pro-modal-overlay .pro-modal-card h4 { color: #111827; }
-          .pro-modal-overlay .pro-modal-card .steps-list li { color: #374151; }
-          .pro-modal-overlay .pro-modal-card .steps-list li strong { color: #111827; }
-
-
-        .bank-card {
-          background: #c62828; /* Davivienda red */
-          color: #fff;
-          border-radius: 12px;
-          padding: 1.2rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.6rem;
-        }
-        .bank-card strong {
-          color: #fff;
-        }
-        .pro-modal-overlay .pro-modal-card .bank-card p {
-          color: #fff;
-        }
-        .steps-list {
-          counter-reset: step;
-          list-style: none;
-          padding-left: 0;
-        }
-        .steps-list li {
-          margin-bottom: 1rem;
-          padding-left: 2rem;
-          position: relative;
-        }
-        .steps-list li::before {
-          counter-increment: step;
-          content: counter(step);
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 1.5rem;
-          height: 1.5rem;
-          background: #3b82f6;
-          color: #fff;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 600;
-        }
-        .breb-section {
-          background: #f9fafb;
-          color: #374151;
-          border-left: 4px solid #c62828;
-          padding: 1rem;
-          border-radius: 8px;
-        }
-        .breb-section strong {
-          color: #c62828;
-        }
       `}</style>
 
       <div className="pricing-header-premium">
@@ -439,57 +330,13 @@ const [showProModal, setShowProModal] = useState(false);
             <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> Soporte prioritario</li>
           </ul>
 
-            <button
-              onClick={() => {
-                if (plan !== 'PRO') {
-                  setShowProModal(true);
-                }
-              }}
-              disabled={plan === 'PRO'}
-              className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
-            >
-              {plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro'}
-            </button>
-{showProModal && createPortal(
-  <div className="pro-modal-overlay" onClick={() => setShowProModal(false)}>
-  <div className="pro-modal-card" onClick={e => e.stopPropagation()}>
-    <div className="pro-modal-header">
-      <img src="/logo.png" alt="AutoPostLab logo" />
-      <h2 className="pro-modal-title">Activa tu Plan Pro</h2>
-    </div>
-    <p className="pro-modal-section">
-      Realiza el pago por transferencia a la cuenta de Davivienda y comienza a disfrutar de todas las funciones de AutoPostLab.
-    </p>
-    <div className="bank-card">
-      <strong>DAVIVIENDA</strong>
-      <p><strong>Tipo de cuenta:</strong> Cuenta de Ahorros</p>
-      <p><strong>Número de cuenta:</strong> 037470250590</p>
-      <p><strong>A nombre de:</strong> ELKIN PELAEZ</p>
-    </div>
-      <p className="pro-modal-section">
-        Una vez realices el pago, envíanos el comprobante para activar tu cuenta.
-      </p>
-    <h4 className="pro-modal-section">¿Cómo activar tu plan?</h4>
-    <ol className="steps-list">
-      <li><strong>Realiza la transferencia</strong><br/>Desde tu app de Davivienda a la cuenta de ahorros.</li>
-      <li><strong>Envía tu comprobante</strong><br/>Al correo elkinpelaez1@gmail.com</li>
-      <li><strong>¡Listo!</strong><br/>Te activaremos tu Plan Pro en el menor tiempo posible.</li>
-    </ol>
-    <p className="pro-modal-section">
-      Normalmente la activación se realiza en menos de 1 hora.
-    </p>
-    <div className="breb-section">
-      También puedes transferir a través de DAVIPLATA, <strong>@PLATA3117287366</strong>
-    </div>
-    <button className="plan-btn-premium primary" onClick={() => setShowProModal(false)}>
-      Entendido, realizaré el pago
-    </button>
-  </div>
-</div>
-
-
-
-, document.body)}
+          <button 
+            onClick={() => handleUpgradeClick('PRO')}
+            disabled={plan === 'PRO' || isUpgrading}
+            className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
+          >
+            {isUpgrading ? 'Cargando...' : (plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro')}
+          </button>
         </div>
 
         {/* PLAN AGENCY */}

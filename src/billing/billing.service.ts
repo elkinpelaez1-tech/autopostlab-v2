@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
-  private readonly PRO_PRICE_CENTS = 7900000; // 79,000 COP
+  private readonly PRO_PRICE_CENTS = 4500000; // 45,000 COP
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,6 +24,7 @@ export class BillingService {
 
     if (!org) throw new BadRequestException('Organización no encontrada');
     if (org.plan === 'PRO') throw new BadRequestException('Ya cuentas con el plan PRO');
+    if (org.plan === 'AGENCY') throw new BadRequestException('Ya cuentas con el plan AGENCY');
 
     // Generar referencia única
     const reference = `UPG-PRO-${organizationId}-${Date.now()}`;
@@ -62,23 +63,51 @@ export class BillingService {
   async handleWebhook(body: any, signatureHeader: string) {
     this.logger.log('Recibido webhook de Wompi');
 
-    // Wompi envía la firma en los headers de eventos (x-event-checksum) si aplicamos configuración en su dashboard
-    // Validaremos el checksum si tenemos un event secret
-    const eventSecret = process.env.WOMPI_EVENTS_SECRET || '';
-    if (eventSecret && body.signature && body.signature.properties && body.signature.checksum) {
-      const properties = body.signature.properties;
-      let dataToSign = '';
-      
-      properties.forEach(prop => {
-        const parts = prop.split('.');
-        let val = body.data;
-        parts.forEach(p => val = val[p]);
-        dataToSign += val;
-      });
-      const timestamp = body.timestamp || '';
-      dataToSign += timestamp; // checksum en v1 incluye timestamp en event
-      // Referencia de webhook v1 Wompi:
-      // A fines prácticos si la firma es requerida, aquí la validamos
+    // 1. Exigir WOMPI_EVENTS_SECRET obligatoriamente; nunca aceptar pagos sin validar firma
+    const eventSecret = (process.env.WOMPI_EVENTS_SECRET || '').trim();
+    if (!eventSecret) {
+      this.logger.error('Webhook rechazado: WOMPI_EVENTS_SECRET no está configurado');
+      throw new BadRequestException('Configuración de firma de webhook incompleta');
+    }
+
+    // 2. Validar firma según el formato oficial de eventos de Wompi:
+    // SHA256(concat(body.data[prop] for prop in signature.properties) + body.timestamp + WOMPI_EVENTS_SECRET)
+    const properties = body?.signature?.properties;
+    const providedChecksum = String(signatureHeader || body?.signature?.checksum || '').trim().toLowerCase();
+    const timestamp = body?.timestamp;
+    if (
+      !Array.isArray(properties) ||
+      properties.length === 0 ||
+      !providedChecksum ||
+      timestamp === undefined ||
+      timestamp === null ||
+      String(timestamp).trim() === ''
+    ) {
+      this.logger.error('Webhook rechazado: metadatos de firma ausentes o incompletos');
+      throw new BadRequestException('Firma de webhook inválida');
+    }
+
+    let dataToSign = '';
+    for (const prop of properties) {
+      const parts = String(prop).split('.');
+      let val = body?.data;
+      for (const p of parts) {
+        val = val?.[p];
+      }
+      if (val === undefined || val === null) {
+        this.logger.error(`Webhook rechazado: propiedad firmada ausente (${prop})`);
+        throw new BadRequestException('Firma de webhook inválida');
+      }
+      dataToSign += String(val);
+    }
+    dataToSign += `${timestamp}${eventSecret}`;
+
+    const expectedChecksum = crypto.createHash('sha256').update(dataToSign).digest('hex').toLowerCase();
+    const providedBuf = Buffer.from(providedChecksum);
+    const expectedBuf = Buffer.from(expectedChecksum);
+    if (providedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(providedBuf, expectedBuf)) {
+      this.logger.error('Webhook rechazado: checksum inválido');
+      throw new BadRequestException('Firma de webhook inválida');
     }
 
     // Usaremos validaciones de seguridad fuertes sobre los datos
@@ -91,67 +120,120 @@ export class BillingService {
     if (!transaction) throw new BadRequestException('No transaction data');
 
     const status = transaction.status;
-    const reference = transaction.reference;
+    const reference = String(transaction.reference || '').trim();
     const amountInCents = transaction.amount_in_cents;
+    const currency = String(transaction.currency || '').trim().toUpperCase();
 
     if (status !== 'APPROVED') {
       this.logger.log(`Transacción rechazada o pendiente: ${status}`);
       return { success: true, status };
     }
 
-    // Validar el monto exacto
+    // Validar moneda exacta (COP) y monto exacto ($45.000 COP = 4500000 centavos)
+    if (currency !== 'COP') {
+      this.logger.error(`Intento de fraude: Pago aprobado con moneda inválida (${currency})`);
+      throw new BadRequestException('Moneda inválida');
+    }
+
     if (amountInCents !== this.PRO_PRICE_CENTS) {
       this.logger.error(`Intento de fraude: Pago aprobado pero con monto inválido ${amountInCents}`);
       throw new BadRequestException('Monto inválido');
     }
 
-    // Extraer organizationId del reference: "UPG-PRO-{orgId}-{timestamp}"
+    // Extraer organizationId exclusivamente del reference trazable: "UPG-PRO-{orgId}-{timestamp}"
     const parts = reference.split('-');
-    if (parts.length < 4 || parts[0] !== 'UPG' || parts[1] !== 'PRO') {
+    const refTimestamp = Number(parts[parts.length - 1]);
+    const organizationId = parts.length >= 4 ? parts.slice(2, parts.length - 1).join('-').trim() : '';
+    if (
+      parts.length < 4 ||
+      parts[0] !== 'UPG' ||
+      parts[1] !== 'PRO' ||
+      !organizationId ||
+      !Number.isInteger(refTimestamp) ||
+      refTimestamp <= 0
+    ) {
       this.logger.log(`Reference ignorada: ${reference}`);
       return { success: true, message: 'Referencia no corresponde a upgrade' };
     }
+    const txIdentifier = String(transaction.id || reference).trim();
+    const receiptType = `WOMPI_TX_${txIdentifier}`;
 
-    // La organizationId puede tener guiones. El format es UPG-PRO-orgId-timestamp
-    // Quitamos los 2 primeros y el último
-    const organizationId = parts.slice(2, parts.length - 1).join('-');
+    this.logger.log(`Transacción APROBADA (${txIdentifier}) para organización: ${organizationId}`);
 
-    this.logger.log(`Transacción APROBADA para organización: ${organizationId}`);
+    let txResult: {
+      status: 'UPGRADED' | 'AGENCY_PRESERVED';
+      orgName: string;
+      newExpiresAt: Date | null;
+    };
 
-    const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
-    if (!org) {
-      this.logger.error(`Organización no encontrada: ${organizationId}`);
-      throw new BadRequestException('Organización no encontrada');
-    }
+    try {
+      txResult = await this.prisma.$transaction(async (tx) => {
+        const org = await tx.organization.findUnique({ where: { id: organizationId } });
+        if (!org) {
+          this.logger.error(`Organización no encontrada: ${organizationId}`);
+          throw new BadRequestException('Organización no encontrada');
+        }
 
-    const now = new Date();
-    let newExpiresAt = new Date();
+        if (org.plan === 'AGENCY') {
+          this.logger.log(`Organización ${organizationId} tiene plan AGENCY. Se conserva sin cambios.`);
+          return { status: 'AGENCY_PRESERVED' as const, orgName: org.name, newExpiresAt: null };
+        }
 
-    if (org.plan === 'PRO' && org.planExpiresAt && org.planExpiresAt > now) {
-      // Extender desde la fecha de expiración actual si ya es PRO y no ha expirado
-      newExpiresAt = new Date(org.planExpiresAt);
-      newExpiresAt.setDate(newExpiresAt.getDate() + 30);
-      this.logger.log(`Extendiendo plan PRO para ${organizationId} hasta ${newExpiresAt}`);
-    } else {
-      // Contar desde hoy si expiró o es la primera vez
-      newExpiresAt.setDate(now.getDate() + 30);
-      this.logger.log(`Nuevo plan PRO para ${organizationId} válido hasta ${newExpiresAt}`);
-    }
+        // Registro atómico persistente del recibo único por transacción (protegido por @@unique([organizationId, type]))
+        await tx.billingNotification.create({
+          data: {
+            organizationId,
+            type: receiptType,
+            message: `WOMPI_RECEIPT:${reference}`,
+            emailSent: true,
+          },
+        });
 
-    // Actualizar el plan a PRO y establecer expiración
-    await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: { 
-        plan: 'PRO',
-        planExpiresAt: newExpiresAt,
-        hadPro: true
+        const now = new Date();
+        let newExpiresAt = new Date(now);
+
+        if (org.plan === 'PRO' && org.planExpiresAt && org.planExpiresAt > now) {
+          // Extender desde la fecha de expiración actual si ya es PRO y no ha expirado
+          newExpiresAt = new Date(org.planExpiresAt);
+          newExpiresAt.setDate(newExpiresAt.getDate() + 30);
+          this.logger.log(`Extendiendo plan PRO para ${organizationId} hasta ${newExpiresAt}`);
+        } else {
+          // Contar desde hoy si expiró o es la primera vez
+          newExpiresAt.setDate(now.getDate() + 30);
+          this.logger.log(`Nuevo plan PRO para ${organizationId} válido hasta ${newExpiresAt}`);
+        }
+
+        // Actualizar el plan a PRO y establecer expiración
+        await tx.organization.update({
+          where: { id: organizationId },
+          data: {
+            plan: 'PRO',
+            planExpiresAt: newExpiresAt,
+            hadPro: true,
+          },
+        });
+
+        // Limpiar únicamente avisos de expiración visibles al usuario, conservando recibos WOMPI_TX_*
+        await tx.billingNotification.deleteMany({
+          where: {
+            organizationId,
+            type: { in: ['EXPIRED', 'EXPIRING_SOON'] },
+          },
+        });
+
+        return { status: 'UPGRADED' as const, orgName: org.name, newExpiresAt };
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        this.logger.log(`Pago ${receiptType} ya procesado en BD para organización ${organizationId}. Se omite duplicado.`);
+        return { success: true, status: 'ALREADY_PROCESSED' };
       }
-    });
+      throw error;
+    }
 
-    // Limpiar notificaciones existentes tras un upgrade exitoso
-    await this.prisma.billingNotification.deleteMany({
-      where: { organizationId: organizationId }
-    });
+    if (txResult.status === 'AGENCY_PRESERVED') {
+      return { success: true, status: 'AGENCY_PRESERVED' };
+    }
 
     // Enviar correo de éxito a los administradores
     const admins = await this.prisma.user.findMany({
@@ -159,12 +241,12 @@ export class BillingService {
     });
 
     for (const admin of admins) {
-      await this.mailService.sendPaymentSuccessEmail(admin.email, org.name, newExpiresAt);
+      await this.mailService.sendPaymentSuccessEmail(admin.email, txResult.orgName, txResult.newExpiresAt!);
     }
 
-    this.logger.log(`✅ Organización ${organizationId} actualizada a PRO exitosamente, notificaciones limpiadas y correo enviado`);
+    this.logger.log(`✅ Organización ${organizationId} actualizada a PRO exitosamente, alertas limpiadas y correo enviado`);
 
-    return { success: true, status: 'UPGRADED', expiresAt: newExpiresAt };
+    return { success: true, status: 'UPGRADED', expiresAt: txResult.newExpiresAt };
   }
 
   async getMetrics() {
@@ -173,7 +255,7 @@ export class BillingService {
     const totalProOrganizations = await this.prisma.organization.count({ where: { plan: 'PRO' } });
     const totalAgencyOrganizations = await this.prisma.organization.count({ where: { plan: 'AGENCY' } });
 
-    const PRO_MONTHLY_PRICE = 79000;
+    const PRO_MONTHLY_PRICE = 45000;
     const monthlyRecurringRevenue = totalProOrganizations * PRO_MONTHLY_PRICE;
     const annualRunRate = monthlyRecurringRevenue * 12;
 
@@ -250,7 +332,10 @@ export class BillingService {
     }
 
     return this.prisma.billingNotification.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+        type: { in: ['EXPIRED', 'EXPIRING_SOON'] },
+      },
       orderBy: { createdAt: 'desc' }
     });
   }
