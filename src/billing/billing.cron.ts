@@ -47,7 +47,12 @@ export class BillingCronService {
           }
         });
 
-        // Crear notificación de EXPIRED si no existe o limpiar la de EXPIRING_SOON
+        // Limpiar aviso previo de EXPIRING_SOON al pasar a EXPIRED
+        await this.prisma.billingNotification.deleteMany({
+          where: { organizationId: org.id, type: 'EXPIRING_SOON' }
+        });
+
+        // Crear notificación de EXPIRED si no existe
         const existingNotif = await this.prisma.billingNotification.findFirst({
           where: { organizationId: org.id, type: 'EXPIRED' }
         });
@@ -56,7 +61,7 @@ export class BillingCronService {
           const newNotif = await this.prisma.billingNotification.create({
             data: {
               type: 'EXPIRED',
-              message: 'Tu plan PRO ha expirado. Renueva para seguir disfrutando de todas las funciones.',
+              message: 'Tu plan PRO anual ha expirado. Renueva por 12 meses (pago único, sin renovación automática) para seguir disfrutando de todas las funciones.',
               organizationId: org.id,
               emailSent: false,
             }
@@ -119,7 +124,7 @@ export class BillingCronService {
           const newNotif = await this.prisma.billingNotification.create({
             data: {
               type: 'EXPIRING_SOON',
-              message: 'Tu suscripción PRO está próxima a expirar. ¡Renueva ahora para no perder acceso!',
+              message: 'Tu plan PRO anual está próximo a expirar. ¡Renueva por 12 meses (pago único, sin renovación automática) para no perder acceso!',
               organizationId: org.id,
               emailSent: false,
             }

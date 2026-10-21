@@ -258,7 +258,7 @@ const Billing: React.FC = () => {
             </h3>
             {plan === 'PRO' && expiresAt && (
               <p style={{ color: '#4b5563' }}>
-                Tu suscripción PRO está activa y vence el <strong>{expiresAt}</strong>.
+                Tu plan PRO anual está activo y vence el <strong>{expiresAt}</strong> (pago único por 12 meses, sin renovación automática).
               </p>
             )}
             {plan === 'FREE' && !isExpired && (
@@ -269,7 +269,7 @@ const Billing: React.FC = () => {
             {isExpired && (
               <p style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <AlertCircle size={16} />
-                Tu suscripción expiró. Has vuelto al plan FREE. Renueva para recuperar acceso completo.
+                Tu plan PRO anual expiró y has vuelto al plan FREE. Realiza un nuevo pago único por 12 meses para recuperar el acceso completo.
               </p>
             )}
           </div>
@@ -320,7 +320,10 @@ const Billing: React.FC = () => {
             <Zap size={24} color="#ffffff" />
           </div>
           <p className="plan-desc-premium">Ideal para profesionales y marcas en crecimiento.</p>
-          <div className="plan-price-premium">$45.000 <span>/ mes</span></div>
+          <div className="plan-price-premium" style={{ marginBottom: '0.4rem' }}>$45.000 <span>COP / año</span></div>
+          <p style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.92)', marginBottom: '2rem', fontWeight: 500 }}>
+            12 meses · Pago único · Sin renovación automática
+          </p>
           
           <ul className="features-list-premium">
             <li className="feature-item-premium"><CheckCircle2 size={18} color="#ffffff" /> 2 usuarios</li>
@@ -332,10 +335,10 @@ const Billing: React.FC = () => {
 
           <button 
             onClick={() => handleUpgradeClick('PRO')}
-            disabled={plan === 'PRO' || isUpgrading}
-            className={`plan-btn-premium primary ${plan === 'PRO' ? 'active-btn' : ''}`}
+            disabled={plan === 'AGENCY' || isUpgrading}
+            className="plan-btn-premium primary"
           >
-            {isUpgrading ? 'Cargando...' : (plan === 'PRO' ? 'Plan Activo' : 'Elegir Pro')}
+            {isUpgrading ? 'Cargando...' : (plan === 'PRO' ? 'Renovar por 12 meses' : 'Elegir Pro Anual')}
           </button>
         </div>
 

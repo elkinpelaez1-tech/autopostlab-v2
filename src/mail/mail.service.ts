@@ -76,15 +76,15 @@ export class MailService {
   }
 
   async sendExpiringSoonEmail(email: string, orgName: string) {
-    const subject = '⚠️ Tu suscripción PRO expirará pronto';
+    const subject = '⚠️ Tu plan PRO anual expirará pronto';
     const upgradeUrl = `${this.frontendUrl}/dashboard?action=upgrade`;
     
     const content = `
       <p>Hola <strong>${orgName}</strong>,</p>
-      <p>Te escribimos para recordarte que tu suscripción <strong>PRO</strong> está próxima a expirar en los siguientes 5 días.</p>
-      <p>Asegúrate de renovar a tiempo para no perder acceso a las herramientas avanzadas y seguir gestionando tus redes sociales sin interrupciones.</p>
+      <p>Te escribimos para recordarte que tu plan <strong>PRO anual</strong> está próximo a expirar en los siguientes 5 días.</p>
+      <p>Recuerda que tu plan es de pago único y no tiene renovación automática. Si deseas continuar, realiza un nuevo pago único por 12 meses para mantener todas las herramientas avanzadas sin interrupciones.</p>
       <div style="text-align: center;">
-        <a href="${upgradeUrl}" class="btn btn-warning" style="color: white;">Renovar ahora</a>
+        <a href="${upgradeUrl}" class="btn btn-warning" style="color: white;">Renovar por 12 meses</a>
       </div>
     `;
 
@@ -92,13 +92,13 @@ export class MailService {
   }
 
   async sendExpiredEmail(email: string, orgName: string) {
-    const subject = '🚨 Tu plan PRO ha expirado';
+    const subject = '🚨 Tu plan PRO anual ha expirado';
     const upgradeUrl = `${this.frontendUrl}/dashboard?action=upgrade`;
     
     const content = `
       <p>Hola <strong>${orgName}</strong>,</p>
-      <p>Te informamos que tu suscripción <strong>PRO</strong> ha expirado y tu cuenta ha vuelto al plan <strong>FREE</strong>.</p>
-      <p>Todavía tienes la posibilidad de recuperar tu plan y seguir disfrutando de todas nuestras ventajas exclusivas. ¡Vuelve hoy mismo!</p>
+      <p>Te informamos que tu plan <strong>PRO anual</strong> ha expirado y tu cuenta ha vuelto al plan <strong>FREE</strong>.</p>
+      <p>Puedes reactivar tu plan en cualquier momento mediante un pago único por 12 meses (sin renovación automática) para seguir disfrutando de todas nuestras ventajas.</p>
       <div style="text-align: center;">
         <a href="${upgradeUrl}" class="btn btn-danger" style="color: white;">Volver a PRO</a>
       </div>
@@ -108,14 +108,14 @@ export class MailService {
   }
 
   async sendPaymentSuccessEmail(email: string, orgName: string, expiresAt: Date) {
-    const subject = '🎉 ¡Pago confirmado! Eres PRO';
+    const subject = '🎉 ¡Pago confirmado! Plan PRO Anual activo';
     const formattedDate = expiresAt.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
     const dashboardUrl = `${this.frontendUrl}/dashboard`;
     
     const content = `
       <p>¡Excelentes noticias <strong>${orgName}</strong>!</p>
-      <p>Hemos recibido tu pago con éxito. Tu cuenta ahora se encuentra en el plan <strong>PRO</strong>.</p>
-      <p>Tu próxima fecha de vencimiento es el: <strong>${formattedDate}</strong>.</p>
+      <p>Hemos recibido tu pago único con éxito. Tu cuenta ahora cuenta con el plan <strong>PRO Anual (12 meses, sin renovación automática)</strong>.</p>
+      <p>Tu plan estará activo hasta el: <strong>${formattedDate}</strong>.</p>
       <p>Disfruta de la mejor experiencia gestionando tus redes sociales de manera profesional.</p>
       <div style="text-align: center;">
         <a href="${dashboardUrl}" class="btn" style="color: white;">Ir al Dashboard</a>

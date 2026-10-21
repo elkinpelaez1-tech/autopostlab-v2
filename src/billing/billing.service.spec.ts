@@ -165,7 +165,7 @@ describe('BillingService – Persistent DB idempotency and Wompi PRO flow', () =
     expect(orgStore.get('org-123').plan).toBe('FREE');
   });
 
-  it('2. generates individual Wompi checkout URL per organization with 45,000 COP (4500000 cents) and integrity signature', async () => {
+  it('2. generates individual Wompi checkout URL per organization with 45,000 COP (4500000 cents) and integrity signature for both new (FREE) and renewal (PRO)', async () => {
     orgStore.set('org-123', { id: 'org-123', name: 'Org 123', plan: 'FREE', planExpiresAt: null });
 
     const res = await service.createCheckout('org-123', 'PRO');
@@ -175,16 +175,27 @@ describe('BillingService – Persistent DB idempotency and Wompi PRO flow', () =
     expect(res.checkoutUrl).toContain('amount-in-cents=4500000');
     expect(res.checkoutUrl).toContain('currency=COP');
     expect(res.checkoutUrl).toContain('signature:integrity=');
+
+    // Renewal while already PRO is also permitted
+    orgStore.set('org-123', {
+      id: 'org-123',
+      name: 'Org 123',
+      plan: 'PRO',
+      planExpiresAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+    });
+    const renewalCheckout = await service.createCheckout('org-123', 'PRO');
+    expect(renewalCheckout.reference).toMatch(/^UPG-PRO-org-123-\d+$/);
+    expect(renewalCheckout.checkoutUrl).toContain('amount-in-cents=4500000');
   });
 
-  it('3. persists WOMPI_TX_<transactionId> receipt atomically in the same DB transaction, clears EXPIRED/EXPIRING_SOON alerts, and hides WOMPI_TX_* from getNotifications', async () => {
+  it('3. activates PRO for 12 months on approved payment, persists WOMPI_TX_<transactionId> atomically, clears EXPIRED/EXPIRING_SOON alerts, and hides WOMPI_TX_* from getNotifications', async () => {
     orgStore.set('org-123', { id: 'org-123', name: 'Org 123', plan: 'FREE', planExpiresAt: null });
     notifStore.push(
       {
         id: 'n-exp',
         organizationId: 'org-123',
         type: 'EXPIRED',
-        message: 'Tu plan PRO ha expirado.',
+        message: 'Tu plan PRO anual ha expirado.',
         emailSent: true,
         createdAt: new Date(),
       },
@@ -192,29 +203,35 @@ describe('BillingService – Persistent DB idempotency and Wompi PRO flow', () =
         id: 'n-soon',
         organizationId: 'org-123',
         type: 'EXPIRING_SOON',
-        message: 'Tu suscripción PRO está próxima a expirar.',
+        message: 'Tu plan PRO anual está próximo a expirar.',
         emailSent: true,
         createdAt: new Date(),
       },
     );
 
+    const beforeCall = new Date();
     const { body, checksum } = buildSignedWompiEvent({
       id: 'tx-100',
       reference: 'UPG-PRO-org-123-1700000000000',
     });
 
     const res = await service.handleWebhook(body, checksum);
+    const afterCall = new Date();
 
     expect(res.status).toBe('UPGRADED');
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(orgStore.get('org-123').plan).toBe('PRO');
+    const updatedOrg = orgStore.get('org-123');
+    expect(updatedOrg.plan).toBe('PRO');
+    expect(updatedOrg.planExpiresAt.getFullYear()).toBe(beforeCall.getFullYear() + 1);
+    expect(updatedOrg.planExpiresAt.getMonth()).toBe(beforeCall.getMonth());
+    expect(updatedOrg.planExpiresAt.getDate()).toBe(afterCall.getDate());
 
     const userVisibleNotifs = await service.getNotifications('org-123');
     expect(userVisibleNotifs).toEqual([]);
     expect(notifStore.map((n) => n.type)).toEqual(['WOMPI_TX_tx-100']);
   });
 
-  it('4. guarantees idempotency across duplicate webhooks, concurrent requests, and simulated server restarts without extending subscription twice', async () => {
+  it('4. guarantees idempotency across duplicate webhooks, concurrent requests, and simulated server restarts without adding another 12 months', async () => {
     orgStore.set('org-123', { id: 'org-123', name: 'Org 123', plan: 'FREE', planExpiresAt: null });
 
     const { body, checksum } = buildSignedWompiEvent({
@@ -241,33 +258,54 @@ describe('BillingService – Persistent DB idempotency and Wompi PRO flow', () =
     expect(mailService.sendPaymentSuccessEmail).toHaveBeenCalledTimes(1);
   });
 
-  it('5. allows a subsequent distinct transaction (tx-2) for the same organization to renew/extend PRO by +30 days', async () => {
-    orgStore.set('org-123', { id: 'org-123', name: 'Org 123', plan: 'FREE', planExpiresAt: null });
-
-    const ev1 = buildSignedWompiEvent({
-      id: 'tx-month-1',
-      reference: 'UPG-PRO-org-123-1700000000010',
+  it('5. allows a subsequent distinct transaction (tx-2) to renew PRO by +12 months from active expiration without losing remaining paid days', async () => {
+    const remainingExpiration = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // 15 paid days remaining
+    orgStore.set('org-123', {
+      id: 'org-123',
+      name: 'Org 123',
+      plan: 'PRO',
+      planExpiresAt: remainingExpiration,
+      hadPro: true,
     });
-    const firstRes = await service.handleWebhook(ev1.body, ev1.checksum);
-    expect(firstRes.status).toBe('UPGRADED');
-    const firstExpiration = orgStore.get('org-123').planExpiresAt as Date;
 
-    const ev2 = buildSignedWompiEvent({
-      id: 'tx-month-2',
+    const evRenewal = buildSignedWompiEvent({
+      id: 'tx-year-renewal-1',
       reference: 'UPG-PRO-org-123-1700000000020',
     });
-    const secondRes = await service.handleWebhook(ev2.body, ev2.checksum);
-    expect(secondRes.status).toBe('UPGRADED');
-    const secondExpiration = orgStore.get('org-123').planExpiresAt as Date;
+    const renewalRes = await service.handleWebhook(evRenewal.body, evRenewal.checksum);
+    expect(renewalRes.status).toBe('UPGRADED');
 
-    const diffDays = Math.round(
-      (secondExpiration.getTime() - firstExpiration.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    expect(diffDays).toBe(30);
-    expect(notifStore.map((n) => n.type)).toEqual(['WOMPI_TX_tx-month-1', 'WOMPI_TX_tx-month-2']);
+    const newExpiration = orgStore.get('org-123').planExpiresAt as Date;
+    expect(newExpiration.getFullYear()).toBe(remainingExpiration.getFullYear() + 1);
+    expect(newExpiration.getMonth()).toBe(remainingExpiration.getMonth());
+    expect(newExpiration.getDate()).toBe(remainingExpiration.getDate());
+    expect(notifStore.map((n) => n.type)).toEqual(['WOMPI_TX_tx-year-renewal-1']);
   });
 
-  it('6. validates official checksum, currency COP, amount 4500000, and rejects PENDING/DECLINED or untraceable references', async () => {
+  it('6. starts the new 12-month period from today when previous planExpiresAt is in the past (expired)', async () => {
+    const pastExpiration = new Date('2025-01-15T12:00:00.000Z');
+    orgStore.set('org-123', {
+      id: 'org-123',
+      name: 'Org 123',
+      plan: 'FREE',
+      planExpiresAt: pastExpiration,
+      hadPro: true,
+    });
+
+    const beforeCall = new Date();
+    const evRehire = buildSignedWompiEvent({
+      id: 'tx-year-rehire-1',
+      reference: 'UPG-PRO-org-123-1700000000030',
+    });
+    const rehireRes = await service.handleWebhook(evRehire.body, evRehire.checksum);
+    expect(rehireRes.status).toBe('UPGRADED');
+
+    const newExpiration = orgStore.get('org-123').planExpiresAt as Date;
+    expect(newExpiration.getFullYear()).toBe(beforeCall.getFullYear() + 1);
+    expect(newExpiration.getMonth()).toBe(beforeCall.getMonth());
+  });
+
+  it('7. validates official checksum, currency COP, amount 4500000, and rejects PENDING/DECLINED or untraceable references', async () => {
     orgStore.set('org-123', { id: 'org-123', name: 'Org 123', plan: 'FREE', planExpiresAt: null });
 
     for (const status of ['PENDING', 'DECLINED', 'ERROR', 'VOIDED']) {
@@ -310,7 +348,7 @@ describe('BillingService – Persistent DB idempotency and Wompi PRO flow', () =
     expect(orgStore.get('org-123').plan).toBe('FREE');
   });
 
-  it('7. protects AGENCY organizations from checkout or webhook overwrite', async () => {
+  it('8. protects AGENCY organizations from checkout or webhook overwrite', async () => {
     orgStore.set('8459742f-93e8-437d-a47d-aa6185719bd2', {
       id: '8459742f-93e8-437d-a47d-aa6185719bd2',
       name: 'Empresa Comercial',
@@ -331,5 +369,49 @@ describe('BillingService – Persistent DB idempotency and Wompi PRO flow', () =
     expect(webhookRes.status).toBe('AGENCY_PRESERVED');
     expect(orgStore.get('8459742f-93e8-437d-a47d-aa6185719bd2').plan).toBe('AGENCY');
     expect(orgStore.get('8459742f-93e8-437d-a47d-aa6185719bd2').planExpiresAt).toBeNull();
+  });
+
+  it('9. handles leap year (Feb 29 -> Feb 28) and end-of-month dates accurately when adding 12 months', async () => {
+    // Leap day Feb 29, 2028 -> Feb 28, 2029 (not March 1)
+    const leapDayFuture = new Date('2028-02-29T15:00:00.000Z');
+    orgStore.set('org-leap', {
+      id: 'org-leap',
+      name: 'Org Leap',
+      plan: 'PRO',
+      planExpiresAt: leapDayFuture,
+      hadPro: true,
+    });
+
+    const evLeap = buildSignedWompiEvent({
+      id: 'tx-leap-2028',
+      reference: 'UPG-PRO-org-leap-1700000000040',
+    });
+    const resLeap = await service.handleWebhook(evLeap.body, evLeap.checksum);
+    expect(resLeap.status).toBe('UPGRADED');
+    const leapResult = orgStore.get('org-leap').planExpiresAt as Date;
+    expect(leapResult.getUTCFullYear()).toBe(2029);
+    expect(leapResult.getUTCMonth()).toBe(1); // February (0-indexed)
+    expect(leapResult.getUTCDate()).toBe(28);
+
+    // End of month Jan 31, 2027 -> Jan 31, 2028
+    const jan31Future = new Date('2027-01-31T15:00:00.000Z');
+    orgStore.set('org-eom', {
+      id: 'org-eom',
+      name: 'Org EOM',
+      plan: 'PRO',
+      planExpiresAt: jan31Future,
+      hadPro: true,
+    });
+
+    const evEom = buildSignedWompiEvent({
+      id: 'tx-eom-2027',
+      reference: 'UPG-PRO-org-eom-1700000000050',
+    });
+    const resEom = await service.handleWebhook(evEom.body, evEom.checksum);
+    expect(resEom.status).toBe('UPGRADED');
+    const eomResult = orgStore.get('org-eom').planExpiresAt as Date;
+    expect(eomResult.getUTCFullYear()).toBe(2028);
+    expect(eomResult.getUTCMonth()).toBe(0); // January
+    expect(eomResult.getUTCDate()).toBe(31);
   });
 });

@@ -6,12 +6,23 @@ import * as crypto from 'crypto';
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
-  private readonly PRO_PRICE_CENTS = 4500000; // 45,000 COP
+  private readonly PRO_PRICE_CENTS = 4500000; // $45.000 COP / 12 meses (pago único, sin renovación automática)
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService
   ) {}
+
+  private addTwelveMonths(baseDate: Date): Date {
+    const result = new Date(baseDate.getTime());
+    const targetMonth = result.getMonth();
+    result.setFullYear(result.getFullYear() + 1);
+    // Ajustar 29 de febrero en año bisiesto a 28 de febrero del año siguiente
+    if (result.getMonth() !== targetMonth) {
+      result.setDate(0);
+    }
+    return result;
+  }
 
   async createCheckout(organizationId: string, plan: string) {
     if (plan !== 'PRO') {
@@ -23,7 +34,6 @@ export class BillingService {
     });
 
     if (!org) throw new BadRequestException('Organización no encontrada');
-    if (org.plan === 'PRO') throw new BadRequestException('Ya cuentas con el plan PRO');
     if (org.plan === 'AGENCY') throw new BadRequestException('Ya cuentas con el plan AGENCY');
 
     // Generar referencia única
@@ -190,17 +200,16 @@ export class BillingService {
         });
 
         const now = new Date();
-        let newExpiresAt = new Date(now);
+        let newExpiresAt: Date;
 
-        if (org.plan === 'PRO' && org.planExpiresAt && org.planExpiresAt > now) {
-          // Extender desde la fecha de expiración actual si ya es PRO y no ha expirado
-          newExpiresAt = new Date(org.planExpiresAt);
-          newExpiresAt.setDate(newExpiresAt.getDate() + 30);
-          this.logger.log(`Extendiendo plan PRO para ${organizationId} hasta ${newExpiresAt}`);
+        if (org.planExpiresAt && org.planExpiresAt > now) {
+          // Extender 12 meses desde la fecha de vencimiento vigente sin perder días pagados
+          newExpiresAt = this.addTwelveMonths(new Date(org.planExpiresAt));
+          this.logger.log(`Extendiendo plan PRO anual (+12 meses) para ${organizationId} hasta ${newExpiresAt}`);
         } else {
-          // Contar desde hoy si expiró o es la primera vez
-          newExpiresAt.setDate(now.getDate() + 30);
-          this.logger.log(`Nuevo plan PRO para ${organizationId} válido hasta ${newExpiresAt}`);
+          // Activar por 12 meses desde hoy si es primera vez o si el período anterior ya venció
+          newExpiresAt = this.addTwelveMonths(now);
+          this.logger.log(`Nuevo plan PRO anual (12 meses) para ${organizationId} válido hasta ${newExpiresAt}`);
         }
 
         // Actualizar el plan a PRO y establecer expiración
@@ -255,9 +264,9 @@ export class BillingService {
     const totalProOrganizations = await this.prisma.organization.count({ where: { plan: 'PRO' } });
     const totalAgencyOrganizations = await this.prisma.organization.count({ where: { plan: 'AGENCY' } });
 
-    const PRO_MONTHLY_PRICE = 45000;
-    const monthlyRecurringRevenue = totalProOrganizations * PRO_MONTHLY_PRICE;
-    const annualRunRate = monthlyRecurringRevenue * 12;
+    const PRO_ANNUAL_PRICE = 45000;
+    const annualRunRate = totalProOrganizations * PRO_ANNUAL_PRICE;
+    const monthlyRecurringRevenue = Math.round(annualRunRate / 12);
 
     const baseForConversion = totalFreeOrganizations + totalProOrganizations;
     const conversionRate = baseForConversion > 0 ? (totalProOrganizations / baseForConversion) : 0;
