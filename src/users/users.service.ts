@@ -10,10 +10,10 @@ export class UsersService implements OnModuleInit {
 
   // -------------------------------------------------------
   // 🛡️ HABILITACIÓN ADMINISTRATIVA MANUAL (PUNTUAL)
-  // Usuario: humberto856247@hotmail.com | Periodo: 22/09/2026 -> 22/10/2026
+  // Usuario: humberto856247@hotmail.com | Periodo: 23/10/2026 -> 23/10/2027 (Pago anual en efectivo)
   // -------------------------------------------------------
   private readonly MANUAL_PRO_EMAIL = 'humberto856247@hotmail.com';
-  private readonly MANUAL_PRO_EXPIRATION = new Date('2026-10-22T23:59:59.999Z');
+  private readonly MANUAL_PRO_EXPIRATION = new Date('2027-10-23T23:59:59.999Z');
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -23,28 +23,71 @@ export class UsersService implements OnModuleInit {
 
   private async applyManualProAccess() {
     try {
-      const now = new Date();
-      if (now <= this.MANUAL_PRO_EXPIRATION) {
-        const user = await this.prisma.user.findFirst({
-          where: { email: { equals: this.MANUAL_PRO_EMAIL, mode: 'insensitive' } },
-          include: { organization: true },
-        });
+      const user = await this.prisma.user.findFirst({
+        where: { email: { equals: this.MANUAL_PRO_EMAIL, mode: 'insensitive' } },
+        include: { organization: true },
+      });
 
-        if (user?.organization && (user.organization.plan !== 'PRO' || !user.organization.planExpiresAt)) {
-          await this.prisma.organization.update({
-            where: { id: user.organization.id },
-            data: {
-              plan: 'PRO',
-              planExpiresAt: this.MANUAL_PRO_EXPIRATION,
-              hadPro: true,
-            },
-          });
-          this.logger.log(`[MANUAL PRO] Acceso PRO aplicado a ${this.MANUAL_PRO_EMAIL} hasta ${this.MANUAL_PRO_EXPIRATION.toISOString()}`);
-        }
+      if (user) {
+        await this.ensureManualProAccess(user);
       }
     } catch (error) {
       this.logger.warn(`[MANUAL PRO] Verificación inicial no completada: ${error.message}`);
     }
+  }
+
+  private async ensureManualProAccess(user: any) {
+    if (!user || user.email?.toLowerCase() !== this.MANUAL_PRO_EMAIL || !user.organization) {
+      return user?.organization;
+    }
+
+    const now = new Date();
+    if (now <= this.MANUAL_PRO_EXPIRATION) {
+      if (
+        user.organization.plan !== 'PRO' ||
+        !user.organization.planExpiresAt ||
+        new Date(user.organization.planExpiresAt) < this.MANUAL_PRO_EXPIRATION
+      ) {
+        const updatedOrg = await this.prisma.organization.update({
+          where: { id: user.organization.id },
+          data: {
+            plan: 'PRO',
+            planExpiresAt: this.MANUAL_PRO_EXPIRATION,
+            hadPro: true,
+          },
+        });
+
+        // Limpiar avisos de expiración para esta organización
+        await this.prisma.billingNotification.deleteMany({
+          where: {
+            organizationId: user.organization.id,
+            type: { in: ['EXPIRED', 'EXPIRING_SOON'] },
+          },
+        });
+
+        // Registro seguro de auditoría de pago manual en efectivo (sin simular Wompi)
+        const existingReceipt = await this.prisma.billingNotification.findFirst({
+          where: {
+            organizationId: user.organization.id,
+            type: 'MANUAL_CASH_PRO_2026',
+          },
+        });
+        if (!existingReceipt) {
+          await this.prisma.billingNotification.create({
+            data: {
+              organizationId: user.organization.id,
+              type: 'MANUAL_CASH_PRO_2026',
+              message: 'PAGO_EFECTIVO_PRO_ANUAL_45000_COP_2026_2027',
+              emailSent: true,
+            },
+          });
+        }
+
+        this.logger.log(`[MANUAL PRO] Acceso PRO anual aplicado a ${this.MANUAL_PRO_EMAIL} hasta ${this.MANUAL_PRO_EXPIRATION.toISOString()}`);
+        return updatedOrg;
+      }
+    }
+    return user.organization;
   }
 
   // -------------------------------------------------------
@@ -96,20 +139,7 @@ export class UsersService implements OnModuleInit {
 
     // Validación puntual para humberto856247@hotmail.com
     if (user.email?.toLowerCase() === this.MANUAL_PRO_EMAIL && user.organization) {
-      const now = new Date();
-      if (now <= this.MANUAL_PRO_EXPIRATION) {
-        if (user.organization.plan !== 'PRO' || !user.organization.planExpiresAt) {
-          const updatedOrg = await this.prisma.organization.update({
-            where: { id: user.organization.id },
-            data: {
-              plan: 'PRO',
-              planExpiresAt: this.MANUAL_PRO_EXPIRATION,
-              hadPro: true,
-            },
-          });
-          user.organization = updatedOrg;
-        }
-      }
+      user.organization = await this.ensureManualProAccess(user);
     }
 
     return user;
