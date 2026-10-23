@@ -23,16 +23,19 @@ export class UsersService implements OnModuleInit {
 
   private async applyManualProAccess() {
     try {
-      const user = await this.prisma.user.findFirst({
-        where: { email: { equals: this.MANUAL_PRO_EMAIL, mode: 'insensitive' } },
-        include: { organization: true },
-      });
+      const now = new Date();
+      if (now <= this.MANUAL_PRO_EXPIRATION) {
+        const user = await this.prisma.user.findFirst({
+          where: { email: { equals: this.MANUAL_PRO_EMAIL, mode: 'insensitive' } },
+          include: { organization: true },
+        });
 
-      if (user) {
-        await this.ensureManualProAccess(user);
+        if (user) {
+          await this.ensureManualProAccess(user);
+        }
       }
-    } catch (error) {
-      this.logger.warn(`[MANUAL PRO] Verificación inicial no completada: ${error.message}`);
+    } catch (error: any) {
+      this.logger.warn(`[MANUAL PRO] Verificación inicial no completada: ${error?.message || error}`);
     }
   }
 
