@@ -1,7 +1,16 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  BadGatewayException,
+  GatewayTimeoutException,
+  HttpException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import * as crypto from 'crypto';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class BillingService {
@@ -129,8 +138,42 @@ export class BillingService {
     const transaction = body.data?.transaction;
     if (!transaction) throw new BadRequestException('No transaction data');
 
-    const status = transaction.status;
     const reference = String(transaction.reference || '').trim();
+
+    // =========================================================================
+    // ENRUTAMIENTO MULTI-APLICACIÓN WOMPI (CREVENTIS S.A.S.)
+    // =========================================================================
+    // 1. Destino: Mi Consumo (referencias que inician con 'MC-')
+    if (reference.startsWith('MC-')) {
+      const targetUrl = (
+        process.env.MICONSUMO_WEBHOOK_URL ||
+        'https://hiebektdunslzdyhuqzs.supabase.co/functions/v1/wompi-webhook'
+      ).trim();
+      this.logger.log(`[ROUTER_WOMPI] Enrutando evento a Mi Consumo (ref: ${this.maskReference(reference)})`);
+      return this.forwardWebhook(targetUrl, 'Mi Consumo', body, signatureHeader);
+    }
+
+    // 2. Destino: VisaScore (referencias con formato canónico UUID)
+    if (UUID_REGEX.test(reference)) {
+      const targetUrl = (
+        process.env.VISASCORE_WEBHOOK_URL ||
+        'https://visascore.onrender.com/payments/webhook'
+      ).trim();
+      this.logger.log(`[ROUTER_WOMPI] Enrutando evento a VisaScore (ref: ${this.maskReference(reference)})`);
+      return this.forwardWebhook(targetUrl, 'VisaScore', body, signatureHeader);
+    }
+
+    // 3. Destino: AutoPostLab (referencias que inician con 'UPG-')
+    if (reference.startsWith('UPG-')) {
+      this.logger.log(`[ROUTER_WOMPI] Procesando evento en AutoPostLab (ref: ${this.maskReference(reference)})`);
+      // Continúa abajo con la lógica local de AutoPostLab
+    } else {
+      // 4. Referencia desconocida: respuesta segura sin procesamiento ni error 400
+      this.logger.warn(`[ROUTER_WOMPI] Referencia no reconocida o ajena: ${this.maskReference(reference)}. Ignorando de forma segura.`);
+      return { success: true, message: 'Referencia no corresponde a upgrade' };
+    }
+
+    const status = transaction.status;
     const amountInCents = transaction.amount_in_cents;
     const currency = String(transaction.currency || '').trim().toUpperCase();
 
@@ -256,6 +299,94 @@ export class BillingService {
     this.logger.log(`✅ Organización ${organizationId} actualizada a PRO exitosamente, alertas limpiadas y correo enviado`);
 
     return { success: true, status: 'UPGRADED', expiresAt: txResult.newExpiresAt };
+  }
+
+  private maskReference(ref: string): string {
+    if (!ref) return 'EMPTY';
+    if (ref.length <= 12) return ref;
+    return `${ref.slice(0, 8)}...${ref.slice(-4)}`;
+  }
+
+  private async forwardWebhook(
+    targetUrl: string,
+    destinationLabel: string,
+    body: any,
+    signatureHeader?: string,
+  ): Promise<any> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const effectiveChecksum = signatureHeader || body?.signature?.checksum;
+    if (effectiveChecksum) {
+      headers['x-event-checksum'] = String(effectiveChecksum).trim();
+    }
+
+    const controller = new AbortController();
+    const timeoutMs = Number(process.env.ROUTER_FORWARD_TIMEOUT_MS) || 8000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const responseText = await response.text();
+      let responseData: any = null;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (_e) {
+        responseData = { raw: responseText };
+      }
+
+      // Si el destino responde con código no exitoso (!response.ok):
+      // NUNCA responder HTTP 200 a Wompi. Lanzar BadGatewayException (HTTP 502) para activar la política de reintentos.
+      if (!response.ok) {
+        this.logger.error(
+          `[ROUTER_WOMPI] Destino [${destinationLabel}] respondió HTTP ${response.status}`,
+        );
+
+        // Devolvemos 502 Bad Gateway para asegurar que Wompi active su política de reintentos
+        // sin importar si el destino respondió 4xx (ej. 404 transitorio por retardo de escritura) o 5xx.
+        throw new BadGatewayException(
+          `Fallo en servicio destino [${destinationLabel}] (HTTP ${response.status})`,
+        );
+      }
+
+      return {
+        success: true,
+        forwardedStatus: response.status,
+        response: responseData,
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+
+      // Si ya es una HttpException de NestJS (BadGateway), relanzarla intacta
+      if (err instanceof HttpException) {
+        throw err;
+      }
+
+      // Si la petición fue abortada por timeout del AbortController:
+      if (err?.name === 'AbortError' || err?.code === 20) {
+        this.logger.error(
+          `[ROUTER_WOMPI] Timeout (${timeoutMs}ms) contactando destino [${destinationLabel}]`,
+        );
+        throw new GatewayTimeoutException(
+          `Tiempo de espera agotado (${timeoutMs}ms) contactando servicio destino [${destinationLabel}]`,
+        );
+      }
+
+      this.logger.error(
+        `[ROUTER_WOMPI] Error de conexión de red hacia destino [${destinationLabel}]: ${err?.message}`,
+      );
+      throw new BadGatewayException(
+        `Error de conectividad de red con servicio destino [${destinationLabel}]`,
+      );
+    }
   }
 
   async getMetrics() {
