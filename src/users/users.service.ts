@@ -10,9 +10,9 @@ export class UsersService implements OnModuleInit {
 
   // -------------------------------------------------------
   // 🛡️ HABILITACIÓN ADMINISTRATIVA MANUAL (PUNTUAL)
-  // Usuario: humberto856247@hotmail.com | Periodo: 23/10/2026 -> 23/10/2027 (Pago anual en efectivo)
+  // Usuario: v_multidestinos@yahoo.com (vinculado de humberto856247@hotmail.com) | Periodo: 23/10/2026 -> 23/10/2027 (Pago anual en efectivo)
   // -------------------------------------------------------
-  private readonly MANUAL_PRO_EMAIL = 'humberto856247@hotmail.com';
+  private readonly MANUAL_PRO_EMAIL = 'v_multidestinos@yahoo.com';
   private readonly MANUAL_PRO_EXPIRATION = new Date('2027-10-23T23:59:59.999Z');
 
   constructor(private readonly prisma: PrismaService) {}
@@ -140,7 +140,7 @@ export class UsersService implements OnModuleInit {
 
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
-    // Validación puntual para humberto856247@hotmail.com
+    // Validación puntual para v_multidestinos@yahoo.com
     if (user.email?.toLowerCase() === this.MANUAL_PRO_EMAIL && user.organization) {
       user.organization = await this.ensureManualProAccess(user);
     }

@@ -51,7 +51,7 @@ describe('UsersService', () => {
     };
     const fakeUser = {
       id: 'user-123',
-      email: 'humberto856247@hotmail.com',
+      email: 'v_multidestinos@yahoo.com',
       organization: fakeOrg,
     };
 
