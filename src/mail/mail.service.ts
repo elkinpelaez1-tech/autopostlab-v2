@@ -21,11 +21,11 @@ export class MailService {
     });
   }
 
-  private async sendMail(to: string, subject: string, html: string) {
+  private async sendMail(to: string, subject: string, html: string): Promise<boolean> {
     try {
       if (!process.env.SMTP_USER && process.env.NODE_ENV !== 'development') {
          this.logger.warn(`SMTP no configurado, omitiendo correo a ${to}`);
-         return;
+         return false;
       }
 
       await this.transporter.sendMail({
@@ -35,8 +35,10 @@ export class MailService {
         html,
       });
       this.logger.log(`Correo enviado exitosamente a ${to}`);
+      return true;
     } catch (error) {
       this.logger.error(`Error al enviar correo a ${to}`, error);
+      return false;
     }
   }
 
@@ -123,5 +125,26 @@ export class MailService {
     `;
 
     await this.sendMail(email, subject, this.getBaseTemplate('¡Gracias por tu compra!', content));
+  }
+
+  async sendPasswordResetEmail(email: string, resetUrl: string, name?: string): Promise<boolean> {
+    const subject = '🔐 Restablece tu contraseña - AutoPostLab';
+    const displayName = name || 'Usuario';
+    
+    const content = `
+      <p>Hola <strong>${displayName}</strong>,</p>
+      <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en AutoPostLab.</p>
+      <p>Haz clic en el siguiente botón para elegir una nueva contraseña:</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${resetUrl}" class="btn" style="color: white; background-color: #6366f1; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Restablecer mi contraseña</a>
+      </div>
+      <p style="font-size: 14px; color: #6b7280;">O copia y pega este enlace en tu navegador:</p>
+      <p style="font-size: 13px; word-break: break-all; color: #4f46e5;"><a href="${resetUrl}" style="color: #4f46e5;">${resetUrl}</a></p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;" />
+      <p style="font-size: 13px; color: #9ca3af;">Por seguridad, este enlace es de un solo uso y expirará en 1 hora.</p>
+      <p style="font-size: 13px; color: #9ca3af;">Si no solicitaste este cambio, puedes ignorar este correo. Tu contraseña actual permanecerá segura y sin cambios.</p>
+    `;
+
+    return await this.sendMail(email, subject, this.getBaseTemplate('Recuperación de contraseña', content));
   }
 }

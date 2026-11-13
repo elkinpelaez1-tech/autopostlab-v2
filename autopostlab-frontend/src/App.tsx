@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import './App.css';
 
@@ -44,6 +45,7 @@ function AppRoutes() {
       {/* Rutas Públicas */}
       <Route path="/" element={<Navigate to="/dashboard" />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       
       {/* Rutas Protegidas */}
       <Route 

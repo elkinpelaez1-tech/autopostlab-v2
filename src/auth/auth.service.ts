@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { LoginDto } from './dto/login.dto';
 import { User, Role } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
@@ -13,11 +14,14 @@ import * as crypto from 'crypto';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private googleClient: OAuth2Client;
+  private readonly resetRateLimit = new Map<string, { count: number; firstAttempt: number; lastAttempt: number }>();
+  private readonly invalidatedResetTokens = new Set<string>();
 
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
     this.logger.log('Google Auth Service Inicializado');
@@ -258,5 +262,159 @@ export class AuthService {
     });
 
     return { message: 'Logout exitoso' };
+  }
+
+  // -------------------------------------------------------
+  // 📧 RECUPERACIÓN DE CONTRASEÑA (SOLICITAR ENLACE)
+  // -------------------------------------------------------
+  async forgotPassword(email: string) {
+    const normalizedEmail = (email || '').trim().toLowerCase();
+
+    // 1. Protección contra abuso / rate limiting
+    const now = Date.now();
+    const record = this.resetRateLimit.get(normalizedEmail);
+    if (record) {
+      if (now - record.firstAttempt > 15 * 60 * 1000) {
+        this.resetRateLimit.set(normalizedEmail, { count: 1, firstAttempt: now, lastAttempt: now });
+      } else {
+        if (now - record.lastAttempt < 60 * 1000) {
+          this.logger.warn(`Recuperación de contraseña throttled (<60s) para ${normalizedEmail}`);
+          // Respuesta anti-enumeración uniforme
+          return {
+            success: true,
+            message: 'Si el correo está registrado, recibirás un enlace de recuperación en los próximos minutos.',
+          };
+        }
+        record.count += 1;
+        record.lastAttempt = now;
+      }
+    } else {
+      this.resetRateLimit.set(normalizedEmail, { count: 1, firstAttempt: now, lastAttempt: now });
+    }
+
+    // 2. Búsqueda de usuario (anti-enumeración)
+    const user = await this.usersService.findByEmail(normalizedEmail);
+    if (!user) {
+      this.logger.log(`Solicitud de recuperación para correo inexistente: ${normalizedEmail}`);
+      return {
+        success: true,
+        message: 'Si el correo está registrado, recibirás un enlace de recuperación en los próximos minutos.',
+      };
+    }
+
+    // 3. Generación de huella criptográfica de contraseña actual
+    const secret = process.env.JWT_ACCESS_SECRET || 'dev_access_secret';
+    const pwdFingerprint = crypto
+      .createHmac('sha256', secret)
+      .update(user.password)
+      .digest('hex')
+      .substring(0, 16);
+
+    // 4. Token firmado con expiración de 1 hora y huella única
+    const tokenPayload = {
+      sub: user.id,
+      email: user.email,
+      purpose: 'pwd_reset',
+      v: pwdFingerprint,
+    };
+
+    const resetToken = await this.jwtService.signAsync(tokenPayload, {
+      expiresIn: '1h',
+    });
+
+    const frontendBase = (process.env.FRONTEND_URL || 'https://app.autopostlab.me').replace(/\/+$/, '');
+    const resetUrl = `${frontendBase}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+    this.logger.log(`Enviando correo de recuperación a: ${user.email}`);
+    await this.mailService.sendPasswordResetEmail(user.email, resetUrl, user.name || undefined);
+
+    return {
+      success: true,
+      message: 'Si el correo está registrado, recibirás un enlace de recuperación en los próximos minutos.',
+      // Facilitar URL de reset si no hay SMTP configurado o en entorno de desarrollo/test
+      ...(!process.env.SMTP_USER || process.env.NODE_ENV === 'development' ? { resetUrl } : {}),
+    };
+  }
+
+  // -------------------------------------------------------
+  // 🔑 RESTABLECER CONTRASEÑA CON TOKEN SEGURO
+  // -------------------------------------------------------
+  async resetPassword(token: string, newPassword: string) {
+    if (!token || !newPassword) {
+      throw new BadRequestException('El token y la nueva contraseña son requeridos');
+    }
+
+    if (newPassword.length < 6) {
+      throw new BadRequestException('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    if (this.invalidatedResetTokens.has(token)) {
+      throw new BadRequestException('Este enlace de recuperación ya ha sido utilizado.');
+    }
+
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch (err) {
+      this.logger.warn(`Token de recuperación inválido o expirado: ${err.message}`);
+      throw new BadRequestException('El enlace de recuperación es inválido o ha expirado.');
+    }
+
+    if (payload?.purpose !== 'pwd_reset' || !payload?.sub || !payload?.v) {
+      throw new BadRequestException('El enlace de recuperación no es válido.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new BadRequestException('El usuario asociado a este enlace ya no existe.');
+    }
+
+    // Comprobar huella de contraseña actual para garantizar uso único
+    const secret = process.env.JWT_ACCESS_SECRET || 'dev_access_secret';
+    const currentFingerprint = crypto
+      .createHmac('sha256', secret)
+      .update(user.password)
+      .digest('hex')
+      .substring(0, 16);
+
+    if (currentFingerprint !== payload.v) {
+      this.logger.warn(`Token reutilizado para usuario ${user.email} (la contraseña ya fue cambiada)`);
+      throw new BadRequestException('Este enlace de recuperación ya ha sido utilizado.');
+    }
+
+    // Hashear nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña y revocar sesiones activas
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        refreshToken: null,
+      },
+    });
+
+    // Revocar tokens en tabla RefreshToken si existen
+    try {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revoked: false },
+        data: { revoked: true },
+      });
+    } catch (rtErr) {
+      this.logger.warn(`Error al revocar registros de RefreshToken: ${rtErr.message}`);
+    }
+
+    // Añadir a lista negra de tokens en memoria
+    this.invalidatedResetTokens.add(token);
+
+    this.logger.log(`Contraseña actualizada exitosamente para ${user.email}. Sesiones anteriores revocadas.`);
+
+    return {
+      success: true,
+      message: 'Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión con tu nueva contraseña.',
+    };
   }
 }
