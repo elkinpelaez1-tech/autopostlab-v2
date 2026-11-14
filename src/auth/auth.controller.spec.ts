@@ -10,6 +10,11 @@ describe('AuthController', () => {
     authService = {
       login: jest.fn().mockResolvedValue({ accessToken: 'mock-at', refreshToken: 'mock-rt' }),
       loginWithGoogle: jest.fn(),
+      register: jest.fn().mockResolvedValue({
+        success: true,
+        message: 'Cuenta creada exitosamente. Ya puedes iniciar sesión con tus credenciales.',
+        user: { id: 'u1', email: 'test@example.com', name: 'Test User' },
+      }),
       forgotPassword: jest.fn().mockResolvedValue({
         success: true,
         message: 'Si el correo está registrado, recibirás un enlace de recuperación.',
@@ -37,6 +42,17 @@ describe('AuthController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('should handle register endpoint', async () => {
+    const dto = {
+      name: 'Nuevo Usuario',
+      email: 'nuevo@example.com',
+      password: 'password123',
+    };
+    const res = await controller.register(dto);
+    expect(res.success).toBe(true);
+    expect(authService.register).toHaveBeenCalledWith(dto);
   });
 
   it('should handle forgotPassword endpoint', async () => {

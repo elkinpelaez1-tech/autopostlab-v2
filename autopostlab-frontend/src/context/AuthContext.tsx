@@ -35,12 +35,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let currentToken = token;
 
       // 1. CAPTURAR TOKENS DE LA URL (FLUJO GOOGLE REDIRECT)
+      // Excluir expresamente la ruta /reset-password donde ?token= es para recuperación y no para sesión
+      const isResetPasswordRoute = window.location.pathname.includes('/reset-password');
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get('token');
       const urlRefreshToken = params.get('refreshToken');
 
-      if (urlToken) {
-        console.log('Tokens capturados de la URL');
+      if (urlToken && !isResetPasswordRoute) {
+        console.log('Tokens capturados de la URL (OAuth)');
         localStorage.setItem('token', urlToken);
         if (urlRefreshToken) {
           localStorage.setItem('refreshToken', urlRefreshToken);
@@ -49,6 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentToken = urlToken;
         // Limpiar URL y redirigir internamente sin recarga
         window.history.replaceState({}, document.title, "/dashboard");
+      }
+
+      if (isResetPasswordRoute) {
+        // En la pantalla de restablecimiento de contraseña aseguramos que no haya sesión activa
+        currentToken = null;
       }
 
       if (currentToken && currentToken !== 'undefined' && currentToken !== 'null') {

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
@@ -6,6 +6,7 @@ import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { User, Role } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
 import * as crypto from 'crypto';
@@ -16,6 +17,7 @@ export class AuthService {
   private googleClient: OAuth2Client;
   private readonly resetRateLimit = new Map<string, { count: number; firstAttempt: number; lastAttempt: number }>();
   private readonly invalidatedResetTokens = new Set<string>();
+  private readonly registerRateLimit = new Map<string, { count: number; firstAttempt: number }>();
 
   constructor(
     private readonly usersService: UsersService,
@@ -415,6 +417,90 @@ export class AuthService {
     return {
       success: true,
       message: 'Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión con tu nueva contraseña.',
+    };
+  }
+
+  // -------------------------------------------------------
+  // 📝 REGISTRO PÚBLICO DE NUEVOS USUARIOS
+  // -------------------------------------------------------
+  async register(dto: RegisterDto) {
+    const normalizedEmail = (dto.email || '').trim().toLowerCase();
+    const cleanName = (dto.name || '').trim();
+
+    // 1. Protección contra abuso / rate limiting
+    const now = Date.now();
+    const rateRecord = this.registerRateLimit.get(normalizedEmail);
+    if (rateRecord) {
+      if (now - rateRecord.firstAttempt > 15 * 60 * 1000) {
+        this.registerRateLimit.set(normalizedEmail, { count: 1, firstAttempt: now });
+      } else {
+        if (rateRecord.count >= 5) {
+          this.logger.warn(`Límite de intentos de registro alcanzado para ${normalizedEmail}`);
+          throw new BadRequestException('Demasiados intentos de registro. Por favor, intenta más tarde.');
+        }
+        rateRecord.count += 1;
+      }
+    } else {
+      this.registerRateLimit.set(normalizedEmail, { count: 1, firstAttempt: now });
+    }
+
+    // 2. Validación de contraseña
+    if (!dto.password || dto.password.length < 6) {
+      throw new BadRequestException('La contraseña debe tener al menos 6 caracteres.');
+    }
+
+    // 3. Creación transaccional de Usuario, Organización y Workspace
+    const newUser = await this.prisma.$transaction(async (tx) => {
+      // Comprobar si el correo ya existe
+      const existingUser = await tx.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (existingUser) {
+        this.logger.warn(`Intento de registro con correo duplicado: ${normalizedEmail}`);
+        throw new ConflictException('El correo electrónico ya se encuentra registrado.');
+      }
+
+      // Hashear contraseña con bcrypt
+      const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+      // Crear usuario con rol básico de inquilino (nunca SUPER_ADMIN), su organización y su workspace inicial
+      const createdUser = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          name: cleanName,
+          password: hashedPassword,
+          role: Role.ADMIN, // Rol básico de inquilino administrador de su propia empresa (nunca SUPER_ADMIN)
+          organization: {
+            create: {
+              name: 'Mi empresa',
+            },
+          },
+          ownedWorkspaces: {
+            create: {
+              name: `Workspace de ${cleanName.split(' ')[0] || 'Trabajo'}`,
+            },
+          },
+        },
+        include: {
+          organization: true,
+          ownedWorkspaces: true,
+        },
+      });
+
+      return createdUser;
+    });
+
+    this.logger.log(`Usuario registrado exitosamente: ${newUser.email} (Org: ${newUser.organizationId})`);
+
+    return {
+      success: true,
+      message: 'Cuenta creada exitosamente. Ya puedes iniciar sesión con tus credenciales.',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+      },
     };
   }
 }

@@ -4,11 +4,11 @@ import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
-describe('AuthService - Password Recovery and Reset', () => {
+describe('AuthService - Public Register, Password Recovery and Reset', () => {
   let authService: AuthService;
   let usersService: jest.Mocked<Partial<UsersService>>;
   let prismaService: any;
@@ -31,8 +31,10 @@ describe('AuthService - Password Recovery and Reset', () => {
     };
 
     prismaService = {
+      $transaction: jest.fn((cb) => cb(prismaService)),
       user: {
         findUnique: jest.fn(),
+        create: jest.fn(),
         update: jest.fn(),
       },
       refreshToken: {
@@ -40,6 +42,7 @@ describe('AuthService - Password Recovery and Reset', () => {
       },
       workspace: {
         findFirst: jest.fn(),
+        create: jest.fn(),
       },
     };
 
@@ -63,6 +66,64 @@ describe('AuthService - Password Recovery and Reset', () => {
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
+  });
+
+  describe('register', () => {
+    const registerDto = {
+      name: 'Carlos Ruiz',
+      email: 'carlos.ruiz@ejemplo.com',
+      password: 'MiPasswordSeguro2026!',
+    };
+
+    it('should reject short passwords (< 6 chars)', async () => {
+      await expect(
+        authService.register({
+          name: 'Carlos',
+          email: 'carlos@test.com',
+          password: '123',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject registration if email is already registered (duplicate)', async () => {
+      prismaService.user.findUnique.mockResolvedValue(mockUser);
+
+      await expect(authService.register(registerDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('should successfully create user, organization and workspace transactionally', async () => {
+      prismaService.user.findUnique.mockResolvedValue(null);
+      prismaService.user.create.mockResolvedValue({
+        id: 'new-user-456',
+        email: 'carlos.ruiz@ejemplo.com',
+        name: 'Carlos Ruiz',
+        role: 'ADMIN',
+        organizationId: 'org-456',
+        organization: { id: 'org-456', name: 'Mi empresa', plan: 'FREE' },
+        ownedWorkspaces: [{ id: 'ws-456', name: 'Workspace de Carlos' }],
+      });
+
+      const res = await authService.register(registerDto);
+
+      expect(res.success).toBe(true);
+      expect(res.message).toContain('Cuenta creada exitosamente');
+      expect(res.user.email).toBe('carlos.ruiz@ejemplo.com');
+
+      // Verify transaction was called
+      expect(prismaService.$transaction).toHaveBeenCalled();
+
+      // Verify user creation data
+      const createCall = prismaService.user.create.mock.calls[0][0];
+      expect(createCall.data.email).toBe('carlos.ruiz@ejemplo.com');
+      expect(createCall.data.name).toBe('Carlos Ruiz');
+      expect(createCall.data.role).toBe('ADMIN'); // Company admin, never SUPER_ADMIN
+      expect(createCall.data.organization.create.name).toBe('Mi empresa');
+      expect(createCall.data.ownedWorkspaces.create.name).toBe('Workspace de Carlos');
+
+      // Verify password was hashed with bcrypt
+      expect(createCall.data.password.startsWith('$2b$')).toBe(true);
+      expect(await bcrypt.compare(registerDto.password, createCall.data.password)).toBe(true);
+    });
   });
 
   describe('forgotPassword', () => {

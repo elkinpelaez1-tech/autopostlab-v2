@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 const ResetPassword: React.FC = () => {
+  const { logout } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
@@ -42,6 +44,12 @@ const ResetPassword: React.FC = () => {
         token,
         newPassword: password,
       });
+
+      // Limpiar cualquier token, sesión o estado de autenticación temporal
+      logout();
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      sessionStorage.clear();
 
       setSuccess(true);
     } catch (err: any) {
@@ -121,11 +129,22 @@ const ResetPassword: React.FC = () => {
             >
               <CheckCircle size={40} />
             </div>
-            <p style={{ fontSize: '14px', color: '#374151', marginBottom: '24px' }}>
-              Ya puedes iniciar sesión con tu nueva contraseña en AutoPostLab.
+            <p style={{ fontSize: '15px', color: '#1f2937', fontWeight: 500, lineHeight: 1.5, marginBottom: '24px' }}>
+              Tu contraseña fue actualizada correctamente. Ya puedes iniciar sesión con tu nueva contraseña.
             </p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => {
+                logout();
+                localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
+                sessionStorage.clear();
+                navigate('/login', {
+                  replace: true,
+                  state: {
+                    successMessage: 'Tu contraseña fue actualizada correctamente. Ya puedes iniciar sesión con tu nueva contraseña.',
+                  },
+                });
+              }}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -139,7 +158,7 @@ const ResetPassword: React.FC = () => {
                 boxShadow: '0 2px 6px rgba(99, 102, 241, 0.3)',
               }}
             >
-              Ir a Iniciar Sesión
+              Aceptar
             </button>
           </div>
         )}
